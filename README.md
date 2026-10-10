@@ -10,7 +10,7 @@ Ya viene con un atajo listo:
 
 | Botón del mouse | Qué hace en Albion |
 |---|---|
-| Botón lateral de **abajo** | `SHIFT + N` → abre el **mapa de viajero** |
+| Botón lateral de **abajo** | `SHIFT+N` → abre el **mapa de viajero** |
 
 ---
 
@@ -18,7 +18,7 @@ Ya viene con un atajo listo:
 
 Necesitas:
 
-- Una PC con **Omarchy** actualizado (con la barra nueva de plugins).
+- Una PC con **Omarchy 4.0 o más nuevo**. Para ver tu versión, ejecuta `omarchy version` en una terminal.
 - **Albion Online** instalado (Steam o el launcher normal, da igual).
 - Un mouse con botones laterales (si quieres usar esos botones).
 
@@ -38,7 +38,14 @@ Copia la línea completa, pégala en la terminal con **`Ctrl + Shift + V`** y pr
 omarchy plugin add https://github.com/Fcogarciaro/Albion-Binds-Omarchy.git --enable
 ```
 
-Si te pide confirmar, escribe **`y`** y presiona **`Enter`**.
+Te va a hacer dos preguntas. Se contestan con las **flechas** y **`Enter`**:
+
+1. **"Clone and add this plugin?"**: antes sale un aviso de que los plugins corren con tus permisos.
+   Elige **Yes** y presiona **`Enter`**.
+2. **"Place fcogarcia.albion-binds in which bar section?"**: ya viene marcada la opción **right** (derecha).
+   Solo presiona **`Enter`**.
+
+Al final debe decir **`Enabled fcogarcia.albion-binds`**.
 
 ### Paso 3: Busca el ícono de la espada ⚔️
 
@@ -98,7 +105,8 @@ Modificadores que puedes usar: `SHIFT`, `CTRL`, `ALT` y `SUPER`. Se unen con `+`
 - **Bote de basura 🗑**: borra el atajo.
 - **Interruptor de arriba**: pausa o activa **todos** los atajos de una vez.
 - **Clic derecho en la espada**: hace lo mismo que el interruptor de arriba, sin abrir el panel.
-  Si la espada se ve **opaca**, los atajos están en pausa.
+
+Si la espada se ve **opaca**, no hay ningún atajo funcionando: o están en pausa, o todos están apagados.
 
 Los cambios se aplican al instante. No tienes que reiniciar nada.
 
@@ -112,11 +120,14 @@ Cuando haya una versión nueva, abre una terminal y ejecuta:
 omarchy plugin update fcogarcia.albion-binds
 ```
 
+Si hay cambios, te los muestra y te pregunta si quieres aplicarlos: elige **Yes** y presiona **`Enter`**.
+
 ---
 
 ## 🗑️ Desinstalar
 
-En una terminal, ejecuta estos comandos uno por uno:
+En una terminal, ejecuta estos comandos uno por uno.
+El primero te pide confirmar: elige **Yes** y presiona **`Enter`**.
 
 ```sh
 omarchy plugin remove fcogarcia.albion-binds
@@ -131,7 +142,7 @@ hyprctl reload
 
 **El botón no hace nada en Albion**
 
-- Revisa que la espada no esté opaca (en pausa) y que el atajo tenga su interruptor encendido.
+- Revisa que la espada no esté opaca y que el atajo tenga su interruptor encendido.
 - Haz clic dentro de la ventana del juego para que tenga el foco y vuelve a probar.
 - Tu mouse puede tener los botones laterales al revés: agrega el mismo atajo con
   **Botón lateral arriba** y prueba ese.
