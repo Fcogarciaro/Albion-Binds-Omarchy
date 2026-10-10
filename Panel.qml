@@ -1,0 +1,345 @@
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import qs.Commons
+import qs.Ui
+import "Model.js" as Model
+
+Panel {
+  id: root
+  moduleName: "fcogarcia.albion-binds"
+
+  readonly property string swordIcon: String.fromCodePoint(0xF04E5)
+  readonly property string trashIcon: String.fromCodePoint(0xF01B4)
+
+  readonly property bool masterEnabled: setting("enabled", true) !== false
+  readonly property var binds: Model.sanitizeBinds(setting("binds", Model.DEFAULT_BINDS))
+  readonly property int activeCount: binds.filter(function(b) { return b.enabled }).length
+
+  property string newTrigger: "mouse:275"
+  property string errorText: ""
+  property string pendingLua: ""
+  readonly property bool editing: customTriggerField.activeFocus || comboField.activeFocus
+
+  function save(changes) {
+    root.settings = Object.assign({}, root.settings, changes)
+    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, root.settings)
+    applyToHyprland()
+  }
+
+  function applyToHyprland() {
+    pendingLua = Model.generateLua(root.binds, root.masterEnabled)
+    if (applyProc.running) return
+    runApply()
+  }
+
+  function runApply() {
+    var script = String(Qt.resolvedUrl("apply.sh")).replace(/^file:\/\//, "")
+    applyProc.command = ["bash", script, pendingLua]
+    pendingLua = ""
+    applyProc.running = true
+  }
+
+  function addBind() {
+    var trigger = Model.normalizeTrigger(newTrigger === "custom" ? customTriggerField.text : newTrigger)
+    var combo = Model.parseCombo(comboField.text)
+    if (!trigger) { errorText = "Botón o tecla no válido (ej. mouse:275, F5)."; return }
+    if (!combo) { errorText = "Atajo no válido (ej. SHIFT+N, CTRL+ALT+1)."; return }
+    if (binds.some(function(b) { return b.trigger === trigger })) {
+      errorText = Model.triggerLabel(trigger) + " ya tiene un atajo."
+      return
+    }
+
+    errorText = ""
+    comboField.text = ""
+    customTriggerField.text = ""
+    save({ binds: binds.concat([{ trigger: trigger, combo: combo.text, enabled: true }]) })
+  }
+
+  function removeBind(index) {
+    var next = binds.slice()
+    next.splice(index, 1)
+    save({ binds: next })
+  }
+
+  function toggleBind(index) {
+    var next = binds.map(function(b, i) {
+      return i === index ? { trigger: b.trigger, combo: b.combo, enabled: !b.enabled } : b
+    })
+    save({ binds: next })
+  }
+
+  Component.onCompleted: applyToHyprland()
+
+  Process {
+    id: applyProc
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: if (text.trim() !== "") root.errorText = "Hyprland: " + text.trim()
+    }
+    onExited: if (root.pendingLua !== "") root.runApply()
+  }
+
+  implicitWidth: button.implicitWidth
+  implicitHeight: button.implicitHeight
+
+  BarIconButton {
+    id: button
+    anchors.fill: parent
+    bar: root.bar
+    text: root.swordIcon
+    opacity: root.masterEnabled && root.activeCount > 0 ? 1 : 0.4
+    tooltipText: root.masterEnabled
+      ? "Albion Binds: " + root.activeCount + " atajo(s) activo(s)"
+      : "Albion Binds: en pausa"
+    onPressed: function(b) {
+      if (b === Qt.RightButton) root.save({ enabled: !root.masterEnabled })
+      else root.toggle()
+    }
+  }
+
+  KeyboardPanel {
+    id: panel
+    anchorItem: button
+    owner: root
+    bar: root.bar
+    open: root.opened
+    focusTarget: keyCatcher
+    contentWidth: panel.fittedContentWidth(Style.space(380))
+    contentHeight: panel.fittedContentHeight(column.implicitHeight)
+
+    PanelKeyCatcher {
+      id: keyCatcher
+      anchors.fill: parent
+      blocked: root.editing
+      onCloseRequested: root.close()
+      onTabRequested: function(direction) { root.switchPanel(direction) }
+
+      Column {
+        id: column
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        spacing: Style.space(14)
+
+        // ---------- Hero ----------
+        Item {
+          width: parent.width
+          implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight, masterSwitch.implicitHeight)
+
+          Text {
+            id: heroIcon
+            textFormat: Text.PlainText
+            text: root.swordIcon
+            color: root.bar.foreground
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.display
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+          }
+
+          Column {
+            id: heroLabels
+            anchors.left: heroIcon.right
+            anchors.leftMargin: Style.space(14)
+            anchors.right: masterSwitch.left
+            anchors.rightMargin: Style.space(10)
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(2)
+
+            Text {
+              text: "Albion Binds"
+              color: root.bar.foreground
+              font.family: root.bar.fontFamily
+              font.pixelSize: Style.font.title
+              font.bold: true
+              elide: Text.ElideRight
+              width: parent.width
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              text: (root.masterEnabled ? "Activo · solo en Albion" : "En pausa").toUpperCase()
+              color: Qt.darker(root.bar.foreground, 1.4)
+              font.family: root.bar.fontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              font.letterSpacing: 1.2
+              elide: Text.ElideRight
+              width: parent.width
+            }
+          }
+
+          ToggleSwitch {
+            id: masterSwitch
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            checked: root.masterEnabled
+            foreground: root.bar.foreground
+            onToggled: root.save({ enabled: !root.masterEnabled })
+          }
+        }
+
+        PanelSeparator { foreground: root.bar.foreground }
+
+        // ---------- Current binds ----------
+        Column {
+          width: parent.width
+          spacing: Style.space(8)
+
+          PanelSectionHeader {
+            text: "ATAJOS"
+            foreground: root.bar.foreground
+            fontFamily: root.bar.fontFamily
+          }
+
+          Text {
+            visible: root.binds.length === 0
+            text: "Sin atajos. Agrega uno abajo."
+            color: root.bar.foreground
+            opacity: 0.6
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.bodySmall
+          }
+
+          Repeater {
+            model: root.binds
+
+            Item {
+              id: bindRow
+              required property var modelData
+              required property int index
+              width: parent.width
+              implicitHeight: Math.max(bindLabels.implicitHeight, bindSwitch.implicitHeight, removeButton.implicitHeight)
+              opacity: modelData.enabled && root.masterEnabled ? 1 : 0.5
+
+              Column {
+                id: bindLabels
+                anchors.left: parent.left
+                anchors.right: bindSwitch.left
+                anchors.rightMargin: Style.space(8)
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Style.space(2)
+
+                Text {
+                  textFormat: Text.PlainText
+                  text: Model.triggerLabel(bindRow.modelData.trigger) + "  →  " + bindRow.modelData.combo
+                  color: root.bar.foreground
+                  font.family: root.bar.fontFamily
+                  font.pixelSize: Style.font.body
+                  font.bold: true
+                  elide: Text.ElideRight
+                  width: parent.width
+                }
+
+                Text {
+                  textFormat: Text.PlainText
+                  text: bindRow.modelData.trigger
+                  color: root.bar.foreground
+                  opacity: 0.6
+                  font.family: root.bar.fontFamily
+                  font.pixelSize: Style.font.caption
+                  elide: Text.ElideRight
+                  width: parent.width
+                }
+              }
+
+              ToggleSwitch {
+                id: bindSwitch
+                anchors.right: removeButton.left
+                anchors.rightMargin: Style.space(6)
+                anchors.verticalCenter: parent.verticalCenter
+                checked: bindRow.modelData.enabled
+                foreground: root.bar.foreground
+                onToggled: root.toggleBind(bindRow.index)
+              }
+
+              PanelActionButton {
+                id: removeButton
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                iconText: root.trashIcon
+                tooltipText: "Quitar atajo"
+                foreground: root.bar.foreground
+                fontFamily: root.bar.fontFamily
+                onClicked: root.removeBind(bindRow.index)
+              }
+            }
+          }
+        }
+
+        PanelSeparator { foreground: root.bar.foreground }
+
+        // ---------- Add bind ----------
+        Column {
+          width: parent.width
+          spacing: Style.space(8)
+
+          PanelSectionHeader {
+            text: "AGREGAR ATAJO"
+            foreground: root.bar.foreground
+            fontFamily: root.bar.fontFamily
+          }
+
+          Dropdown {
+            width: parent.width
+            label: "Botón"
+            value: root.newTrigger
+            options: Model.TRIGGER_PRESETS
+            foreground: root.bar.foreground
+            fontFamily: root.bar.fontFamily
+            onChanged: function(v) { root.newTrigger = v; root.errorText = "" }
+          }
+
+          TextField {
+            id: customTriggerField
+            visible: root.newTrigger === "custom"
+            width: parent.width
+            placeholderText: "Tecla o botón de Hyprland (ej. F5, mouse:277)"
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.body
+            foreground: root.bar.foreground
+            onAccepted: comboField.forceActiveFocus()
+          }
+
+          Row {
+            width: parent.width
+            spacing: Style.space(6)
+
+            TextField {
+              id: comboField
+              width: parent.width - addButton.width - parent.spacing
+              placeholderText: "Atajo en Albion (ej. SHIFT+N)"
+              font.family: root.bar.fontFamily
+              font.pixelSize: Style.font.body
+              foreground: root.bar.foreground
+              onAccepted: root.addBind()
+              Keys.onEscapePressed: keyCatcher.forceActiveFocus()
+            }
+
+            Button {
+              id: addButton
+              text: "Agregar"
+              anchors.verticalCenter: comboField.verticalCenter
+              foreground: root.bar.foreground
+              fontFamily: root.bar.fontFamily
+              fontSize: Style.font.bodySmall
+              bordered: true
+              onClicked: root.addBind()
+            }
+          }
+
+          Text {
+            visible: root.errorText !== ""
+            width: parent.width
+            text: root.errorText
+            color: Color.urgent
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+        }
+      }
+    }
+  }
+}

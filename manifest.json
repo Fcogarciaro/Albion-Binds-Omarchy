@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "fcogarcia.albion-binds",
+  "name": "Albion Binds",
+  "version": "1.0.0",
+  "author": "fcogarcia",
+  "license": "MIT",
+  "description": "Atajos de mouse y teclado que solo funcionan cuando Albion Online tiene el foco.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Panel.qml" },
+  "barWidget": {
+    "displayName": "Albion Binds",
+    "description": "Agrega, pausa y quita atajos que solo se activan en Albion Online.",
+    "category": "Games",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
