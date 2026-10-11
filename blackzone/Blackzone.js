@@ -383,6 +383,17 @@ function logExpense(blackzone, input) {
   return { ok: true, blackzone: withEvents(bz, bz.events.concat([expenseEvent(i.id, i.now, i.value, i.note)])) }
 }
 
+// Most recent expense event (the later one wins a tie), or null. Feeds the
+// "repeat last expense" button.
+function lastExpense(blackzone) {
+  var events = normalize(blackzone).events
+  var last = null
+  for (var i = 0; i < events.length; i++) {
+    if (events[i].type === "expense" && (last === null || events[i].at >= last.at)) last = events[i]
+  }
+  return last
+}
+
 function removeEvent(blackzone, eventId) {
   var bz = normalize(blackzone)
   if (!hasId(bz.events, eventId)) return fail("No encontré ese registro.")

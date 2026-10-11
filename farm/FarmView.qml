@@ -25,7 +25,8 @@ Column {
   property string activePlotId: ""
   property string activeMode: "plant"
   property string plantCrop: "turnip"
-  property string city: "Lymhurst"
+  // City shared by the prefill, the planner and the black zone deaths: remembered in the data file.
+  readonly property string city: store.document.ui.city
   property string errorText: ""
   property string priceText: ""
   property string priceTarget: ""
@@ -33,7 +34,7 @@ Column {
   property string confirmKey: ""
   // Rotation planner: collapsible, prices fetched on demand for plannerCity.
   property bool plannerOpen: false
-  property string plannerCity: "Lymhurst"
+  readonly property string plannerCity: city
   property var plannerPrices: ({})
   property string plannerStatus: ""
   readonly property var plannerRows: Planner.rankCrops(farm, plannerPrices, Farm.CROPS)
@@ -79,6 +80,25 @@ Column {
     return true
   }
 
+  // Remembers form choices (city) in the data file's ui section.
+  function rememberUi(patch) {
+    var next = Object.assign({}, store.document)
+    next.ui = Object.assign({}, store.document.ui, patch)
+    store.document = next
+    store.saveData()
+  }
+
+  function setCity(value) { rememberUi({ city: value }) }
+
+  // Focus goes to the form's first field once its section is visible.
+  function focusForm() {
+    Qt.callLater(function() {
+      if (activePlotId === "") return
+      if (activeMode === "plant") seedsField.forceActiveFocus()
+      else harvestedField.forceActiveFocus()
+    })
+  }
+
   function deleteLabel(key, idle) { return confirmKey === key ? "¿Seguro?" : idle }
 
   // Two-tap delete: the first tap arms the control, the second one runs it.
@@ -113,6 +133,7 @@ Column {
     harvestedField.text = ""
     returnedField.text = ""
     cropPriceField.text = ""
+    focusForm()
   }
 
   function closeForm() {
@@ -221,9 +242,13 @@ Column {
   }
 
   function setPlannerCity(value) {
-    plannerCity = value
+    setCity(value)
+  }
+
+  // A new city (picked here, in the form or synced from another PC) invalidates the planner prices.
+  onPlannerCityChanged: {
     plannerPrices = ({})
-    fetchPlannerPrices()
+    if (plannerOpen) fetchPlannerPrices()
   }
 
   function savePlannerSetting(patch) { commit(Farm.setPlannerSettings(farm, patch)) }
@@ -773,7 +798,7 @@ Column {
         options: Prices.CITIES
         foreground: owner.bar.foreground
         fontFamily: owner.bar.fontFamily
-        onChanged: function(v) { view.city = v }
+        onChanged: function(v) { view.setCity(v) }
       }
 
       Button {

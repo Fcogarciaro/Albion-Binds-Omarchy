@@ -10,12 +10,16 @@ var DATA_VERSION = 1
 var DEFAULT_TAX_RATE = 0.065
 var DEFAULT_SEEDS_PER_PLOT = 9
 var MAX_SEEDS_PER_PLOT = 1000
+var DEFAULT_CITY = "Lymhurst"
+var MAX_UI_ID = 64
+var MAX_UI_NOTE = 120
 
 function defaultData() {
   return {
     version: DATA_VERSION,
     farm: { plots: [], cycles: [], settings: settingsOr(null) },
-    blackzone: { sets: [], events: [] }
+    blackzone: { sets: [], events: [] },
+    ui: uiOr(null)
   }
 }
 
@@ -32,6 +36,21 @@ function settingsOr(settings) {
     premium: typeof s.premium === "boolean" ? s.premium : true,
     focus: typeof s.focus === "boolean" ? s.focus : true,
     seedsPerPlot: typeof seeds === "number" && Math.floor(seeds) === seeds && seeds >= 1 && seeds <= MAX_SEEDS_PER_PLOT ? seeds : DEFAULT_SEEDS_PER_PLOT
+  }
+}
+
+// Remembered form choices (last city, death set and expense note). They live
+// in the data file so they follow the user across PCs; every field is
+// validated on its own and unknown keys are dropped.
+function uiOr(ui) {
+  var u = ui && typeof ui === "object" && !Array.isArray(ui) ? ui : {}
+  var city = typeof u.city === "string" ? u.city.trim() : ""
+  var setId = typeof u.deathSetId === "string" ? u.deathSetId : ""
+  var note = typeof u.expenseNote === "string" ? u.expenseNote.trim() : ""
+  return {
+    city: city !== "" && city.length <= 40 ? city : DEFAULT_CITY,
+    deathSetId: setId.length <= MAX_UI_ID ? setId : "",
+    expenseNote: note.slice(0, MAX_UI_NOTE)
   }
 }
 
@@ -68,7 +87,8 @@ function parseData(text, sanitizeFarm, sanitizeBlackzone) {
     data: {
       version: DATA_VERSION,
       farm: farmData,
-      blackzone: blackzoneData
+      blackzone: blackzoneData,
+      ui: uiOr(raw.ui)
     }
   }
 }

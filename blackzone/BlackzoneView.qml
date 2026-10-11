@@ -47,9 +47,13 @@ Column {
 
   // Death form.
   property string deathSetId: ""
-  property string city: "Lymhurst"
+  // Shared with the Cultivos tab; remembered in the data file (ui section).
+  readonly property string city: store.document.ui.city
+  readonly property var lastExpense: Bz.lastExpense(blackzone)
   property var deathPrices: ({})
   property string priceText: ""
+  // A price request was asked for while another one was still running.
+  property bool priceQueued: false
   readonly property var deathSet: findSet(deathSetId)
 
   // Fields and dropdowns of the set editor live inside the sets Repeater, so
@@ -176,6 +180,21 @@ Column {
     return true
   }
 
+  // Remembers form choices (city, death set, expense note) in the data file's ui section.
+  function rememberUi(patch) {
+    var next = Object.assign({}, store.document)
+    next.ui = Object.assign({}, store.document.ui, patch)
+    store.document = next
+    store.saveData()
+  }
+
+  function setCity(value) { rememberUi({ city: value }) }
+
+  // Focus goes to a section's first field once it is visible.
+  function focusSoon(openCheck, focusIt) {
+    Qt.callLater(function() { if (openCheck()) focusIt() })
+  }
+
   function deleteLabel(key, idle) { return confirmKey === key ? "¿Seguro?" : idle }
 
   // Two-tap delete: the first tap arms the control, the second one runs it.
@@ -191,6 +210,11 @@ Column {
   }
 
   // ---------- Sets ----------
+
+  function toggleSets() {
+    setsOpen = !setsOpen
+    focusSoon(function() { return setsOpen }, function() { newSetField.forceActiveFocus() })
+  }
 
   function addSet() {
     var id = newId("s")
@@ -263,7 +287,15 @@ Column {
 
   function toggleDeath() {
     deathOpen = !deathOpen
-    if (deathOpen && deathSetId === "" && blackzone.sets.length > 0) setDeathSet(blackzone.sets[0].id)
+    if (deathOpen && findSet(deathSetId) === null && blackzone.sets.length > 0) {
+      var remembered = findSet(store.document.ui.deathSetId)
+      setDeathSet(remembered ? remembered.id : blackzone.sets[0].id)
+    }
+    focusDeathValue()
+  }
+
+  function focusDeathValue() {
+    focusSoon(function() { return deathOpen }, function() { deathValueField.forceActiveFocus() })
   }
 
   function setDeathSet(id) {
@@ -271,6 +303,16 @@ Column {
     deathPrices = ({})
     priceText = ""
     deathValueField.text = ""
+    priceQueued = false
+    rememberUi({ deathSetId: id })
+  }
+
+  // "Morí con este set": opens the death form on that set and fetches its prices.
+  function diedWithSet(setId) {
+    deathOpen = true
+    setDeathSet(setId)
+    fetchDeathPrices()
+    focusDeathValue()
   }
 
   function pricedValue() {
@@ -293,7 +335,8 @@ Column {
   // One request for every piece of the set; failures only set a message.
   function fetchDeathPrices() {
     var set = deathSet
-    if (!set || set.pieces.length === 0 || priceProc.running) return
+    if (!set || set.pieces.length === 0) return
+    if (priceProc.running) { priceQueued = true; priceText = "Consultando el mercado…"; return }
     var items = Bz.setItems(set)
     var ids = []
     var qualities = []
@@ -302,6 +345,7 @@ Column {
       if (qualities.indexOf(items[i].quality) < 0) qualities.push(items[i].quality)
     }
     priceProc.city = city
+    priceProc.setId = set.id
     priceProc.keys = set.pieces.map(function(p) { return Bz.priceKey(p) })
     priceText = "Consultando el mercado…"
     priceProc.command = ["curl", "-fsS", "--max-time", "10", Prices.buildUrl(ids, city, "west", qualities)]
@@ -309,6 +353,12 @@ Column {
   }
 
   function applyDeathPrices(text) {
+    // The set changed while the request ran: drop the stale answer (a queued request runs on exit).
+    if (priceProc.setId !== deathSetId) {
+      priceText = ""
+      return
+    }
+    priceQueued = false
     var result = Prices.parseQualityPrices(text, priceProc.city, priceProc.keys)
     if (!result.ok) { priceText = "No pude consultar el mercado. Escribe el valor a mano."; return }
     deathPrices = result.prices
@@ -334,6 +384,11 @@ Column {
 
   // ---------- Loot ----------
 
+  function toggleLoot() {
+    lootOpen = !lootOpen
+    focusSoon(function() { return lootOpen }, function() { lootValueField.forceActiveFocus() })
+  }
+
   function saveLoot() {
     var tomes = parseTomeInput()
     if (tomes === null) { errorText = "Los tomos deben ser números enteros."; return }
@@ -350,10 +405,25 @@ Column {
 
   // ---------- Expenses ----------
 
+  // Opening the form prefills the last note; the value is always typed.
+  function toggleExpense() {
+    expenseOpen = !expenseOpen
+    if (expenseOpen && expenseNoteField.text === "") expenseNoteField.text = store.document.ui.expenseNote
+    focusSoon(function() { return expenseOpen }, function() { expenseValueField.forceActiveFocus() })
+  }
+
+  // One tap re-logs the last expense: same value and note, new id and time.
+  function repeatExpense() {
+    var last = lastExpense
+    if (!last) return
+    commit(Bz.logExpense(blackzone, { value: last.value, note: last.note, now: Date.now(), id: newId("x") }))
+  }
+
   function saveExpense() {
     var value = Farm.parseSilver(expenseValueField.text)
     if (value === null || value <= 0) { errorText = "El gasto debe ser un número mayor que 0 (ej. 12k, 1.5m)."; return }
     if (commit(Bz.logExpense(blackzone, { value: value, note: expenseNoteField.text, now: Date.now(), id: newId("x") }))) {
+      rememberUi({ expenseNote: expenseNoteField.text.trim() })
       expenseValueField.text = ""
       expenseNoteField.text = ""
       expenseOpen = false
@@ -374,7 +444,13 @@ Column {
   Process {
     id: priceProc
     property string city: ""
+    property string setId: ""
     property var keys: []
+    // A request asked for while this one ran starts once it has exited.
+    onRunningChanged: if (!running && view.priceQueued) {
+      view.priceQueued = false
+      view.fetchDeathPrices()
+    }
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: view.applyDeathPrices(text)
@@ -448,7 +524,7 @@ Column {
         fontFamily: owner.bar.fontFamily
         fontSize: Style.font.caption
         bordered: true
-        onClicked: view.setsOpen = !view.setsOpen
+        onClicked: view.toggleSets()
       }
     }
 
@@ -511,6 +587,16 @@ Column {
                 font.pixelSize: Style.font.caption
                 elide: Text.ElideRight
                 width: parent.width
+              }
+
+              Button {
+                visible: setRow.modelData.pieces.length > 0
+                text: "Morí con este set"
+                foreground: owner.bar.foreground
+                fontFamily: owner.bar.fontFamily
+                fontSize: Style.font.caption
+                bordered: true
+                onClicked: view.diedWithSet(setRow.modelData.id)
               }
             }
 
@@ -833,7 +919,7 @@ Column {
             options: Prices.CITIES
             foreground: owner.bar.foreground
             fontFamily: owner.bar.fontFamily
-            onChanged: function(v) { view.city = v }
+            onChanged: function(v) { view.setCity(v) }
           }
 
           Button {
@@ -950,7 +1036,7 @@ Column {
         fontFamily: owner.bar.fontFamily
         fontSize: Style.font.caption
         bordered: true
-        onClicked: view.lootOpen = !view.lootOpen
+        onClicked: view.toggleLoot()
       }
     }
 
@@ -966,7 +1052,7 @@ Column {
         font.family: owner.bar.fontFamily
         font.pixelSize: Style.font.body
         foreground: owner.bar.foreground
-        onAccepted: lootNoteField.forceActiveFocus()
+        onAccepted: view.saveLoot()
         Keys.onEscapePressed: view.catcher.forceActiveFocus()
       }
 
@@ -997,6 +1083,7 @@ Column {
             font.pixelSize: Style.font.body
             foreground: owner.bar.foreground
             onTextChanged: view.setTomeText(modelData.tier, text)
+            onAccepted: view.saveLoot()
             onActiveFocusChanged: view.tomeBusy = activeFocus
             Keys.onEscapePressed: view.catcher.forceActiveFocus()
 
@@ -1059,8 +1146,18 @@ Column {
         fontFamily: owner.bar.fontFamily
         fontSize: Style.font.caption
         bordered: true
-        onClicked: view.expenseOpen = !view.expenseOpen
+        onClicked: view.toggleExpense()
       }
+    }
+
+    Button {
+      visible: view.lastExpense !== null
+      text: view.lastExpense ? "Repetir: " + view.lastExpense.note + " −" + Farm.formatShort(view.lastExpense.value) : ""
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      fontSize: Style.font.bodySmall
+      bordered: true
+      onClicked: view.repeatExpense()
     }
 
     Column {
@@ -1075,7 +1172,7 @@ Column {
         font.family: owner.bar.fontFamily
         font.pixelSize: Style.font.body
         foreground: owner.bar.foreground
-        onAccepted: expenseNoteField.forceActiveFocus()
+        onAccepted: view.saveExpense()
         Keys.onEscapePressed: view.catcher.forceActiveFocus()
       }
 
