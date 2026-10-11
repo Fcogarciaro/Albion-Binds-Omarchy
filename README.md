@@ -140,7 +140,7 @@ Los cambios se aplican al instante. No tienes que reiniciar nada.
 
 La pestaña **Cultivos** lleva la cuenta de lo que realmente ganas con tu isla. Albion no ofrece ninguna forma de leer el estado de la isla,
 así que **tú anotas cada ciclo** y el plugin calcula la ganancia.
-Cubre los cultivos de **T1 a T8** (zanahoria, frijol, trigo, nabo, repollo, papa, maíz y calabaza). Hierbas y animales no están incluidos.
+Cubre los cultivos de **T1 a T8** (zanahorias, frijoles, manojo de trigo, rábanos, coles, patatas, fardo de maíz y calabaza, con los nombres del juego en español). Hierbas y animales no están incluidos.
 
 ### Cómo anotar un ciclo
 
@@ -201,7 +201,7 @@ así que **tú anotas ambas cosas** y el plugin hace la cuenta.
 ### Crear un set
 
 1. En **SETS**, escribe un nombre (por ejemplo "Tanque T8") y presiona **Crear**.
-2. Presiona **Editar** en ese set. Para cada pieza elige la **ranura** (casco, armadura, botas, arma, mano izquierda, capa, bolsa, montura, poción o comida), busca la pieza por nombre en la lista, y elige **tier**, **encantamiento** (.0 a .4) y **calidad** (de Normal a Obra maestra). Presiona **Agregar pieza**.
+2. Presiona **Editar** en ese set. Para cada pieza elige la **ranura** (cabeza, pecho, zapatos, arma principal, arma secundaria, capa, bolsa, montura, poción o comida), busca la pieza por nombre en la lista, y elige **nivel** (tier), **encantamiento** (.0 a .4) y **calidad** (de Normal a Obra maestra). Presiona **Agregar pieza**.
 3. En **poción** y **comida** no hay calidad, pero sí **cantidad** (cuántas llevas). Déjala vacía si es una sola.
 4. **Quitar** borra una pieza; **Renombrar** cambia el nombre del set.
 
