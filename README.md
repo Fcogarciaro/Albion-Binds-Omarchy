@@ -525,6 +525,26 @@ rm ~/albion-companion.json
 - Tu mouse puede tener los botones laterales al revés: agrega el mismo atajo con
   **Botón lateral arriba** y prueba ese.
 
+**Juego con gamescope y los atajos no funcionan**
+
+Los atajos funcionan con gamescope, por ejemplo con `gamescope ... -- albion-1920x800.sh`. Con gamescope, Hyprland no ve la ventana de Albion,
+sino la de gamescope. Por eso el plugin reconoce la ventana `gamescope` cuyo título empieza con **Albion Online**.
+
+1. Actualiza el plugin y reinicia la barra. Al arrancar, el plugin reescribe sus atajos:
+
+   ```sh
+   omarchy plugin update fcogarcia.albion-companion
+   omarchy restart shell
+   ```
+
+2. Con el juego abierto, comprueba que el título sea el esperado:
+
+   ```sh
+   hyprctl clients -j | jq '.[] | select(.class=="gamescope") | .title'
+   ```
+
+   Debe decir `"Albion Online Client"`. En la pantalla del launcher el título es otro, así que ahí los atajos no se activan. Eso es normal.
+
 **Abre el mapa normal en vez del mapa de viajero**
 
 Revisa que el atajo diga `SHIFT+N` y no solo `N`.

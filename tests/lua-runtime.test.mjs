@@ -198,6 +198,46 @@ describe("generated Lua", { skip: !hasLua && "lua not on PATH" }, () => {
     assert.equal(r.active, "1")
   })
 
+  test("gamescope running Albion is matched by its title", () => {
+    const r = runScenario(generated, `
+      set_window({ class = "gamescope", initial_class = "gamescope", title = "Albion Online Client" })
+      out("active", active_binds())
+    `)
+    assert.equal(r.active, "1")
+  })
+
+  test("gamescope running another game is not matched", () => {
+    const r = runScenario(generated, `
+      set_window({ class = "gamescope", initial_class = "gamescope", title = "Some Other Game" })
+      out("active", active_binds())
+    `)
+    assert.equal(r.active, "0")
+  })
+
+  test("gamescope without a title is not matched", () => {
+    const r = runScenario(generated, `
+      set_window({ class = "gamescope" })
+      out("active", active_binds())
+    `)
+    assert.equal(r.active, "0")
+  })
+
+  test("a title change inside gamescope re-evaluates the binds", () => {
+    const r = runScenario(generated, `
+      set_window({ class = "gamescope", title = "gamescope" })
+      out("before", active_binds())
+      state.window.title = "Albion Online Client"
+      state.handlers["window.title"](state.window)
+      out("after", active_binds())
+      state.window.title = "Something else"
+      state.handlers["window.title"](state.window)
+      out("left", active_binds())
+    `)
+    assert.equal(r.before, "0")
+    assert.equal(r.after, "1")
+    assert.equal(r.left, "0")
+  })
+
   test("focus change mid-sequence releases everything and aborts the sequence", () => {
     const r = runScenario(generated, `
       set_window({ class = "Albion-Online" })

@@ -1,6 +1,10 @@
 .pragma library
 
 var ALBION_CLASS = "Albion-Online"
+// Under gamescope Hyprland only sees the gamescope window, which forwards the
+// game title ("Albion Online Client"), so it is matched by class plus title.
+var GAMESCOPE_CLASS = "gamescope"
+var ALBION_TITLE_PREFIX = "Albion Online"
 
 var DEFAULT_BINDS = [
   { trigger: "mouse:275", combo: "SHIFT+N", enabled: true }
@@ -93,6 +97,8 @@ function generateLua(binds, enabled) {
     "-- Do not edit by hand: change it from the bar icon.",
     "",
     "local ALBION_CLASS = " + luaString(ALBION_CLASS),
+    "local GAMESCOPE_CLASS = " + luaString(GAMESCOPE_CLASS),
+    "local ALBION_TITLE_PREFIX = " + luaString(ALBION_TITLE_PREFIX),
     "local DELAY_MS = 40",
     "",
     "local binds = {",
@@ -185,13 +191,23 @@ function generateLua(binds, enabled) {
     "  end",
     "end",
     "",
+    "-- Albion runs natively (class) or inside gamescope (class + window title).",
+    "local function is_albion(window)",
+    "  if window == nil then return false end",
+    "  if window.class == ALBION_CLASS or window.initial_class == ALBION_CLASS then return true end",
+    "  local gamescope = window.class == GAMESCOPE_CLASS or window.initial_class == GAMESCOPE_CLASS",
+    "  local title = type(window.title) == \"string\" and window.title or \"\"",
+    "  return gamescope and title:sub(1, #ALBION_TITLE_PREFIX) == ALBION_TITLE_PREFIX",
+    "end",
+    "",
     "local function refresh()",
-    "  local window = hl.get_active_window()",
-    "  set_bound(window ~= nil and (window.class == ALBION_CLASS or window.initial_class == ALBION_CLASS))",
+    "  set_bound(is_albion(hl.get_active_window()))",
     "end",
     "",
     "if #binds > 0 then",
     "  hl.on(\"window.active\", refresh)",
+    "  -- gamescope keeps the same window and only changes its title (launcher -> game).",
+    "  hl.on(\"window.title\", refresh)",
     "  refresh()",
     "end",
     ""
