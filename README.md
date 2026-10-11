@@ -166,12 +166,6 @@ En todos los campos de plata (precio de semilla o cultivo, valor perdido, botín
 
 `k` es mil y `m` es millón (mayúsculas o minúsculas). Un punto o coma seguido de exactamente tres dígitos son miles (`1.500` = 1,500). Un decimal solo se acepta con `k` o `m`: `1.5` sin letra es ambiguo y se rechaza con un aviso. Cantidades, semillas y tomos siguen siendo números enteros.
 
-### Registrar un gasto
-
-Si pagas para llegar a zona negra (por ejemplo el portal SAFE), abre **REGISTRAR GASTO**, escribe lo que costó y una nota (si la dejas vacía se guarda como «Portal»). Los gastos se restan de la ganancia y aparecen como **Gastado** en el resumen y como filas «Gasto» en el historial.
-
-Si repites el mismo gasto, usa **Repetir: Portal SAFE −12k** (arriba del formulario): un toque anota otro gasto con el mismo valor y nota, con la hora de ahora. El botón no aparece si todavía no hay ningún gasto. El formulario recuerda la última nota.
-
 ### Cómo se calcula la ganancia
 
 ```
@@ -242,6 +236,12 @@ Una muerte guarda una **foto de los precios** del momento: si el mercado cambia 
 Abre **REGISTRAR BOTÍN**, escribe la plata que sacaste (lo que vale lo que vendiste o lo que te dio el cofre) y, si quieres, una nota. Presiona **Guardar botín**.
 
 En el mismo formulario puedes contar los **Tomos de conocimiento** que te cayeron, por nivel (T1 a T8). Solo se cuentan: no tienen valor en plata y no entran en la ganancia. El resumen muestra el total de cada nivel y el historial los anota en cada botín; puedes guardar un botín solo con tomos y sin plata.
+
+### Registrar un gasto
+
+Si pagas para llegar a zona negra (por ejemplo el portal SAFE), abre **REGISTRAR GASTO**, escribe lo que costó y una nota (si la dejas vacía se guarda como «Portal»). Los gastos se restan de la ganancia y aparecen como **Gastado** en el resumen y como filas «Gasto» en el historial.
+
+Si repites el mismo gasto, usa **Repetir: Portal SAFE −12k** (arriba del formulario): un toque anota otro gasto con el mismo valor y nota, con la hora de ahora. El botón no aparece si todavía no hay ningún gasto. El formulario recuerda la última nota.
 
 ### Cosas que recuerda el plugin
 

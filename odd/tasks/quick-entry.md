@@ -21,7 +21,7 @@
 - [x] Q1: Pure silver parser and formatter round trip (`Farm.parseSilver`), wired into all silver fields in FarmView and BlackzoneView. Route: delegated writer.
 - [x] Q2: Remembered choices, repeat last expense, "Morí con este set", Enter/focus behavior. Route: same writer.
 - [x] Q3: README updates. Route: same writer.
-- [ ] S1: Large window spike (report only, throwaway plugin outside the repo, cleaned up). Route: delegated spike worker.
+- [x] S1: Large window spike (report only, throwaway plugin outside the repo, cleaned up). Route: delegated spike worker.
 
 ## Delivery
 `single-pr` on branch `feat/quick-entry`. RDD is off (global).
@@ -44,3 +44,21 @@
 
 ### Q3 (writer) - f671b41
 - README: shorthand table, "Repetir" expense button, "Morí con este set", remembered choices (`ui` in `data.json`), Enter and focus behavior. Docs only; `npm test` 184/184.
+
+### S1 (spike worker, throwaway plugin, cleaned up)
+- **Feasible.** A manifest with `kinds: ["bar-widget","panel"]` validates (services/PluginRegistry.qml:52,64,488-489).
+  - shell.qml:1145-1148 routes a mixed plugin to the panel loader, and :1152-1225 and :1310-1337 load `entryPoints.panel`, calling `open(payload)` / `close()`.
+  - `omarchy-shell shell summon <id> '{...}'` returned `ok`. `toggle` closed it.
+  - A `.pragma library` JS file in the plugin dir was imported by both the widget and the panel.
+- The widget can run the command with `BarWidget.run(command)` (Ui/PluginBarApi.qml:84-86) or a Quickshell `Process`.
+- **Window:** `FloatingWindow` 900x650 was tiled by Hyprland (size ignored).
+  - Use the stock `PanelWindow` with `WlrLayershell.layer: Overlay` and `keyboardFocus: Exclusive` (plugins/panels/wifiqr/Panel.qml:25-88, 213-220).
+- **Unverified:**
+  - Keyboard input in the window (could not type).
+  - The widget button path (no clicks).
+- Hyprland bind command: `omarchy-shell shell toggle fcogarcia.albion-companion '{}'`.
+- **Cleanup:** the plugin was removed, its backup dir deleted, the shell rescanned, and `shell.json` is identical to the pre-test backup.
+- Note: `fcogarcia.albion-companion` is not installed on this dev PC. The user runs it on other PCs.
+
+### Parent check
+- README "Registrar un gasto" moved from Cultivos to Zona negra (expenses belong to the black zone).
