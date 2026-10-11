@@ -10,13 +10,13 @@ The user wants to know whether black zone runs pay off. Albion exposes neither d
 - Storage: `blackzone.sets`, `blackzone.events` in `data.json` (DataStore, live reload already in place). Version stays 1. Malformed entries are dropped on parse, injected sanitizer like `Farm.sanitizeFarm`.
 - **Set:**
   ```
-  { id, name, pieces: [{ slot, base, tier, enchant, quality }] }
+  { id, name, pieces: [{ slot, base, tier, enchant, quality, quantity }] }
   ```
-  - Slots: head, armor, shoes, mainhand, offhand, cape, bag, mount.
-  - Consumables are out of scope.
+  - Slots: head, armor, shoes, mainhand, offhand, cape, bag, mount, plus consumables `potion` and `food`.
+  - Scope change (2026-10-11, user decision): consumables are IN scope. Their pieces carry `quantity` (integer >= 1, default 1; they are stacks); quality does not apply (stored as 1, selector hidden). A piece's death value is price x quantity. Gear pieces keep quantity 1.
   - Item id = `T<tier>_<base>` plus `@<enchant>` when enchant > 0. The API quality is 1..5.
 - **Events:**
-  - Death: `{ id, type: "death", setId, at, value, pieces: [{ itemId, quality, price|null }] }`. Prices are a SNAPSHOT at log time, so later price changes never rewrite history. The user can edit the value before saving.
+  - Death: `{ id, type: "death", setId, at, value, setName, partial, pieces: [{ itemId, quality, quantity, price|null }] }`. Prices are a SNAPSHOT at log time, so later price changes never rewrite history. The user can edit the value before saving.
   - Loot: `{ id, type: "loot", at, value, note }`. The value is silver typed by the user.
   - Delete with a two-tap confirm, as in Cultivos.
 - **Profit** = Σ loot.value − Σ death.value, shown in total and per set. Death count and a loot/death ratio are nice-to-have.
@@ -39,8 +39,8 @@ The user wants to know whether black zone runs pay off. Albion exposes neither d
 - `qmllint` with the `qs` symlink, as in farm-log T3.
 
 ## Tasks
-- [ ] T1: Gear catalog generator script and generated catalog (tests on the pure transform with a small fixture: slot mapping, tier-adjective stripping, dedupe). Route: delegated writer.
-- [ ] T2: `blackzone/Blackzone.js`, pure and test-first:
+- [x] T1: Gear catalog generator script and generated catalog (tests on the pure transform with a small fixture: slot mapping, tier-adjective stripping, dedupe). Route: delegated writer.
+- [x] T2: `blackzone/Blackzone.js`, pure and test-first:
   - Sanitize.
   - Set CRUD and piece item ids.
   - `logDeath` (with snapshot), `logLoot`, removal.
@@ -60,3 +60,16 @@ The user wants to know whether black zone runs pay off. Albion exposes neither d
 `single-pr` on branch `feat/blackzone-tracker`. RDD is off (global).
 
 ## Progress / evidence
+
+### T1 (writer) - 5d36a45
+- `scripts/gear-catalog.mjs` (pure transform) + `scripts/build-gear-catalog.mjs`; regenerate with `npm run build:catalog [path/to/items.json]` (downloads the dump to the OS temp folder when no path is given; never committed).
+- RED: `tests/gear-catalog.test.mjs` failed to load (module missing). GREEN: 136/136 total after the module (7 new tests).
+- Catalog: 362 entries, 35,170 bytes. Slots: mainhand 150, mount 40, armor 34, head 34, shoes 34, food 20, offhand 18, cape 15, potion 15, bag 2.
+- Tier grades (ES-ES, stripped from gear names): T1 principiante, T2 novato, T3 obrero, T4 iniciado, T5 experto, T6 maestro, T7 gran maestro, T8 anciano. Consumables use other names per tier: potions end in "menor"/"mayor" (stripped); meals change ingredient per tier (common word prefix kept, e.g. "Sopa", or "... asado").
+- Exclusions: MOUNTUPGRADE, `_SKIN`, `CAPEITEM_*_BP` (insignias), decorative `CAPE_*` (undead/keeper/morgana, arena banner), `ARTEFACT`, `PROTOTYPE` (no names), `_XMAS`, siege items, `SPECIAL_FOOD`, UNIQUE_/untiered ids, anything without ES/EN name.
+
+### T2 (writer) - ddbdb79
+- RED: `tests/blackzone.test.mjs` failed to load (module missing; 136 pass + 1 failing file), then Prices/Storage additions failed 4 of 162. GREEN: `npm test` 162/162.
+- Removed set decision: deleting a set keeps its death events; every death stores `setName` (snapshot), so history, totals and per-set losses still show the old name. Renaming a set does not rewrite past deaths.
+- `Prices.buildUrl(ids, city, server, qualities)` (optional list, default `[1]`) and `Prices.parseQualityPrices` (keys `itemId:quality`) added; farm callers unchanged.
+- `Storage.parseData/reloadOutcome` take an injected `sanitizeBlackzone`; `DataStore.qml` passes `Blackzone.sanitizeBlackzone`.
