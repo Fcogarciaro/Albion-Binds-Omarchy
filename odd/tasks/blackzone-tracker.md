@@ -137,3 +137,16 @@ Left unchanged (already official or no game term):
 - RED: 6 of 166 failing before the implementation (gear names, `pieceOptions`, `parsePieceOption`, `pieceName`). GREEN: `npm test` 166/166.
 - qmllint (`/tmp/qsl/qs` symlink): 0 errors, same warning categories as before (Unqualified access 122 -> 124 instances, same category).
 - NOT verified: QML never run live.
+
+## Fix: potions/food could not be added, set rename did nothing (reported by user after live test)
+- Cause: `renameField`, `quantityField` and the piece dropdowns are declared inside the sets `Repeater` delegate, but root-level functions and the `editing` binding referenced them by id. Delegate ids are not visible outside the delegate, so a `ReferenceError` was thrown silently.
+  - Gear still worked because `pieceIsConsumable && quantityField...` short-circuited.
+- Fix (parent, inline, one file):
+  - `addPiece(quantityText)` and `renameSet(name)` take the values as arguments from inside the delegate.
+  - The quantity field is cleared through a `pieceFormCleared()` signal.
+  - The rename field is filled when the editor opens.
+  - `editing` reads `editorBusy`, which a `Binding` in the open editor sets.
+- Check: a small script lists Repeater-scoped ids used outside their Repeater.
+  - It flags the old file: renameField, pieceSlotDropdown, ...
+  - It finds nothing in the new BlackzoneView, FarmView or BindsView.
+- QML-only, so no pure logic to TDD. `npm test` 166/166. qmllint: 0 errors. QML not run live.

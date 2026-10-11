@@ -51,10 +51,14 @@ Column {
   property string priceText: ""
   readonly property var deathSet: findSet(deathSetId)
 
-  readonly property bool editing: newSetField.activeFocus || renameField.activeFocus || quantityField.activeFocus
+  // Fields and dropdowns of the set editor live inside the sets Repeater, so
+  // their ids are not reachable from here: the open editor reports through
+  // editorBusy, and values are passed in as arguments.
+  property bool editorBusy: false
+  signal pieceFormCleared()
+
+  readonly property bool editing: newSetField.activeFocus || editorBusy
     || deathValueField.activeFocus || lootValueField.activeFocus || lootNoteField.activeFocus
-    || pieceSlotDropdown.popupOpen || pieceBaseDropdown.popupOpen || pieceTierDropdown.popupOpen
-    || pieceEnchantDropdown.popupOpen || pieceQualityDropdown.popupOpen
     || deathSetDropdown.popupOpen || cityDropdown.popupOpen
 
   readonly property var enchantOptions: [0, 1, 2, 3, 4].map(function(e) { return { value: String(e), label: "." + e } })
@@ -149,7 +153,6 @@ Column {
     if (editSetId === setId) { editSetId = ""; return }
     editSetId = setId
     var set = findSet(setId)
-    renameField.text = set ? set.name : ""
     resetPieceForm()
   }
 
@@ -158,11 +161,11 @@ Column {
     pieceTier = 6
     pieceEnchant = 0
     pieceQuality = 1
-    quantityField.text = ""
+    pieceFormCleared()
   }
 
-  function renameSet() {
-    commit(Bz.renameSet(blackzone, editSetId, renameField.text))
+  function renameSet(name) {
+    commit(Bz.renameSet(blackzone, editSetId, name))
   }
 
   function removeSet(setId) {
@@ -185,11 +188,11 @@ Column {
     pieceTier = parsed.tier
   }
 
-  function addPiece() {
+  function addPiece(quantityText) {
     if (pieceBase === "") { errorText = "Elige una pieza de la lista."; return }
     var quantity = 1
-    if (pieceIsConsumable && quantityField.text.trim() !== "") {
-      quantity = Farm.parseInteger(quantityField.text)
+    if (pieceIsConsumable && quantityText.trim() !== "") {
+      quantity = Farm.parseInteger(quantityText)
       if (quantity === null || quantity < 1) { errorText = "La cantidad debe ser un número entero mayor que 0."; return }
     }
     var ok = commit(Bz.addPiece(blackzone, editSetId, {
@@ -457,6 +460,16 @@ Column {
             visible: setRow.isEditing
             width: parent.width
             spacing: Style.space(6)
+            onVisibleChanged: if (visible) renameField.text = setRow.modelData.name
+
+            Binding {
+              target: view
+              property: "editorBusy"
+              when: setRow.isEditing
+              value: renameField.activeFocus || quantityField.activeFocus
+                || pieceSlotDropdown.popupOpen || pieceBaseDropdown.popupOpen || pieceTierDropdown.popupOpen
+                || pieceEnchantDropdown.popupOpen || pieceQualityDropdown.popupOpen
+            }
 
             Row {
               width: parent.width
@@ -469,7 +482,7 @@ Column {
                 font.family: owner.bar.fontFamily
                 font.pixelSize: Style.font.body
                 foreground: owner.bar.foreground
-                onAccepted: view.renameSet()
+                onAccepted: view.renameSet(renameField.text)
                 Keys.onEscapePressed: view.catcher.forceActiveFocus()
               }
 
@@ -481,7 +494,7 @@ Column {
                 fontFamily: owner.bar.fontFamily
                 fontSize: Style.font.bodySmall
                 bordered: true
-                onClicked: view.renameSet()
+                onClicked: view.renameSet(renameField.text)
               }
             }
 
@@ -604,8 +617,13 @@ Column {
               font.family: owner.bar.fontFamily
               font.pixelSize: Style.font.body
               foreground: owner.bar.foreground
-              onAccepted: view.addPiece()
+              onAccepted: view.addPiece(quantityField.text)
               Keys.onEscapePressed: view.catcher.forceActiveFocus()
+
+              Connections {
+                target: view
+                function onPieceFormCleared() { quantityField.text = "" }
+              }
             }
 
             Button {
@@ -614,7 +632,7 @@ Column {
               fontFamily: owner.bar.fontFamily
               fontSize: Style.font.bodySmall
               bordered: true
-              onClicked: view.addPiece()
+              onClicked: view.addPiece(quantityField.text)
             }
 
             Button {
