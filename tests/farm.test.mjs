@@ -20,7 +20,7 @@ test("catalog: T1 to T8 crops with Spanish names, crop and seed ids", () => {
   const crops = plain(Farm.CROPS)
   assert.deepEqual(crops.map((c) => c.tier), [1, 2, 3, 4, 5, 6, 7, 8])
   assert.deepEqual(crops.map((c) => c.key), ["carrot", "bean", "wheat", "turnip", "cabbage", "potato", "corn", "pumpkin"])
-  assert.deepEqual(crops.map((c) => c.name), ["Zanahoria", "Frijol", "Trigo", "Nabo", "Repollo", "Papa", "Maíz", "Calabaza"])
+  assert.deepEqual(crops.map((c) => c.name), ["Zanahorias", "Frijoles", "Manojo de trigo", "Rábanos", "Coles", "Patatas", "Fardo de maíz", "Calabaza"])
   assert.equal(crops[3].cropId, "T4_TURNIP")
   assert.equal(crops[3].seedId, "T4_FARM_TURNIP_SEED")
   assert.equal(crops[7].cropId, "T8_PUMPKIN")

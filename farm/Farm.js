@@ -14,13 +14,13 @@
 var DEFAULT_TAX_RATE = 0.065
 
 var CROPS = [
-  { tier: 1, key: "carrot", name: "Zanahoria", cropId: "T1_CARROT", seedId: "T1_FARM_CARROT_SEED" },
-  { tier: 2, key: "bean", name: "Frijol", cropId: "T2_BEAN", seedId: "T2_FARM_BEAN_SEED" },
-  { tier: 3, key: "wheat", name: "Trigo", cropId: "T3_WHEAT", seedId: "T3_FARM_WHEAT_SEED" },
-  { tier: 4, key: "turnip", name: "Nabo", cropId: "T4_TURNIP", seedId: "T4_FARM_TURNIP_SEED" },
-  { tier: 5, key: "cabbage", name: "Repollo", cropId: "T5_CABBAGE", seedId: "T5_FARM_CABBAGE_SEED" },
-  { tier: 6, key: "potato", name: "Papa", cropId: "T6_POTATO", seedId: "T6_FARM_POTATO_SEED" },
-  { tier: 7, key: "corn", name: "Maíz", cropId: "T7_CORN", seedId: "T7_FARM_CORN_SEED" },
+  { tier: 1, key: "carrot", name: "Zanahorias", cropId: "T1_CARROT", seedId: "T1_FARM_CARROT_SEED" },
+  { tier: 2, key: "bean", name: "Frijoles", cropId: "T2_BEAN", seedId: "T2_FARM_BEAN_SEED" },
+  { tier: 3, key: "wheat", name: "Manojo de trigo", cropId: "T3_WHEAT", seedId: "T3_FARM_WHEAT_SEED" },
+  { tier: 4, key: "turnip", name: "Rábanos", cropId: "T4_TURNIP", seedId: "T4_FARM_TURNIP_SEED" },
+  { tier: 5, key: "cabbage", name: "Coles", cropId: "T5_CABBAGE", seedId: "T5_FARM_CABBAGE_SEED" },
+  { tier: 6, key: "potato", name: "Patatas", cropId: "T6_POTATO", seedId: "T6_FARM_POTATO_SEED" },
+  { tier: 7, key: "corn", name: "Fardo de maíz", cropId: "T7_CORN", seedId: "T7_FARM_CORN_SEED" },
   { tier: 8, key: "pumpkin", name: "Calabaza", cropId: "T8_PUMPKIN", seedId: "T8_FARM_PUMPKIN_SEED" }
 ]
 
