@@ -26,6 +26,7 @@ Column {
   property bool setsOpen: true
   property bool deathOpen: false
   property bool lootOpen: false
+  property bool expenseOpen: false
   property bool historyOpen: true
 
   property string errorText: ""
@@ -110,6 +111,7 @@ Column {
 
   readonly property bool editing: newSetField.activeFocus || editorBusy
     || tomeBusy || deathValueField.activeFocus || lootValueField.activeFocus || lootNoteField.activeFocus
+    || expenseValueField.activeFocus || expenseNoteField.activeFocus
     || deathSetDropdown.popupOpen || cityDropdown.popupOpen
 
   readonly property var enchantOptions: [0, 1, 2, 3, 4].map(function(e) { return { value: String(e), label: "." + e } })
@@ -346,6 +348,18 @@ Column {
     }
   }
 
+  // ---------- Expenses ----------
+
+  function saveExpense() {
+    var value = Farm.parseInteger(expenseValueField.text)
+    if (value === null || value <= 0) { errorText = "El gasto debe ser un número entero mayor que 0."; return }
+    if (commit(Bz.logExpense(blackzone, { value: value, note: expenseNoteField.text, now: Date.now(), id: newId("x") }))) {
+      expenseValueField.text = ""
+      expenseNoteField.text = ""
+      expenseOpen = false
+    }
+  }
+
   function removeEvent(id) {
     commit(Bz.removeEvent(blackzone, id))
   }
@@ -394,6 +408,7 @@ Column {
       textFormat: Text.PlainText
       text: "Ganado: " + Farm.formatSilver(view.sums.loot) + " (" + view.sums.loots + " botín/es)"
         + "\nPerdido: " + Farm.formatSilver(view.sums.lost) + " (" + view.sums.deaths + " muerte(s))"
+        + "\nGastado: " + Farm.formatSilver(view.sums.spent) + " (" + view.sums.expenses + " gasto(s))"
         + (view.sums.lootPerDeath !== null ? "\nBotín medio por muerte: " + Farm.formatSilver(view.sums.lootPerDeath) : "")
         + view.tomeSummary(view.sums.tomes)
       color: owner.bar.foreground
@@ -1015,6 +1030,77 @@ Column {
     }
   }
 
+  // ---------- Expenses ----------
+  Column {
+    width: parent.width
+    spacing: Style.space(8)
+
+    PanelSeparator { foreground: owner.bar.foreground }
+
+    Item {
+      width: parent.width
+      implicitHeight: Math.max(expenseHeader.implicitHeight, expenseToggle.implicitHeight)
+
+      PanelSectionHeader {
+        id: expenseHeader
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        text: "REGISTRAR GASTO"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
+
+      Button {
+        id: expenseToggle
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        text: view.expenseOpen ? "Ocultar" : "Mostrar"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.caption
+        bordered: true
+        onClicked: view.expenseOpen = !view.expenseOpen
+      }
+    }
+
+    Column {
+      visible: view.expenseOpen
+      width: parent.width
+      spacing: Style.space(8)
+
+      TextField {
+        id: expenseValueField
+        width: parent.width
+        placeholderText: "Gasto (plata)"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: expenseNoteField.forceActiveFocus()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      TextField {
+        id: expenseNoteField
+        width: parent.width
+        placeholderText: "Portal SAFE"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: view.saveExpense()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      Button {
+        text: "Guardar gasto"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        onClicked: view.saveExpense()
+      }
+    }
+  }
+
   Text {
     visible: view.errorText !== "" || view.store.error !== ""
     width: parent.width
@@ -1067,6 +1153,7 @@ Column {
         id: historyRow
         required property var modelData
         readonly property bool isDeath: modelData.type === "death"
+        readonly property bool isExpense: modelData.type === "expense"
         width: parent.width
         implicitHeight: Math.max(historyLabel.implicitHeight, historyValue.implicitHeight, historyDelete.implicitHeight)
 
@@ -1080,7 +1167,9 @@ Column {
           text: view.shortDate(historyRow.modelData.at) + " · "
             + (historyRow.isDeath
               ? "Muerte · " + historyRow.modelData.setName + (historyRow.modelData.partial ? " (parcial)" : "")
-              : "Botín" + (historyRow.modelData.note !== "" ? " · " + historyRow.modelData.note : "")
+              : historyRow.isExpense
+                ? "Gasto · " + historyRow.modelData.note
+                : "Botín" + (historyRow.modelData.note !== "" ? " · " + historyRow.modelData.note : "")
                 + (historyRow.modelData.tomes ? " · Tomos: " + view.tomesText(historyRow.modelData.tomes) : ""))
           color: owner.bar.foreground
           font.family: owner.bar.fontFamily
@@ -1094,8 +1183,8 @@ Column {
           anchors.rightMargin: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
-          text: view.signed(historyRow.isDeath ? -historyRow.modelData.value : historyRow.modelData.value)
-          color: historyRow.isDeath ? Color.urgent : owner.bar.foreground
+          text: view.signed(historyRow.isDeath || historyRow.isExpense ? -historyRow.modelData.value : historyRow.modelData.value)
+          color: historyRow.isDeath || historyRow.isExpense ? Color.urgent : owner.bar.foreground
           font.family: owner.bar.fontFamily
           font.pixelSize: Style.font.bodySmall
           font.bold: true

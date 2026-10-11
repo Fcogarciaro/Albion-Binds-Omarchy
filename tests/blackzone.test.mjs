@@ -196,7 +196,7 @@ test("totals: loot, losses, profit, deaths and per-set losses (including removed
   assert.equal(t.loots, 2)
   assert.deepEqual(t.bySet, { s1: { name: "Tanque", deaths: 2, lost: 40000 } })
   assert.equal(t.lootPerDeath, 60000)
-  assert.deepEqual(plain(Bz.totals(empty())), { loot: 0, lost: 0, profit: 0, deaths: 0, loots: 0, bySet: {}, lootPerDeath: null, tomes: {}, tomeCount: 0 })
+  assert.deepEqual(plain(Bz.totals(empty())), { loot: 0, lost: 0, profit: 0, deaths: 0, loots: 0, bySet: {}, lootPerDeath: null, tomes: {}, tomeCount: 0, spent: 0, expenses: 0 })
 })
 
 test("recentEvents: newest first with an optional limit", () => {
@@ -323,4 +323,43 @@ test("totals: tomes per tier and in total, never part of profit", () => {
   assert.equal(t.profit, 150)
   assert.deepEqual(plain(Bz.totals(empty())).tomes, {})
   assert.equal(Bz.totals(empty()).tomeCount, 0)
+})
+
+test("logExpense: positive value, trimmed note, default note Portal", () => {
+  let bz = ok(Bz.logExpense(empty(), { value: 12000, note: "  Portal SAFE ", now: 1, id: "x1" }))
+  assert.deepEqual(plain(bz.events), [{ id: "x1", type: "expense", at: 1, value: 12000, note: "Portal SAFE" }])
+  bz = ok(Bz.logExpense(bz, { value: 5, now: 2, id: "x2" }))
+  assert.equal(bz.events[1].note, "Portal")
+  for (const bad of [{}, { value: 0 }, { value: -3 }, { value: 1.5 }, { value: "9" }])
+    assert.equal(Bz.logExpense(empty(), { now: 1, id: "x9", ...bad }).ok, false, JSON.stringify(bad))
+  assert.equal(Bz.logExpense(bz, { value: 1, now: 1, id: "x1" }).ok, false)
+  assert.equal(ok(Bz.logExpense(empty(), { value: 1, note: "n".repeat(300), now: 1, id: "x" })).events[0].note.length, 120)
+})
+
+test("sanitizeBlackzone: keeps expenses, drops invalid ones, old data unchanged", () => {
+  const clean = plain(Bz.sanitizeBlackzone({ events: [
+    { id: "a", type: "expense", at: 1, value: 10, note: " Portal SAFE " },
+    { id: "b", type: "expense", at: 1, value: 0, note: "" },
+    { id: "c", type: "expense", at: 1, value: "5" },
+    { id: "d", type: "expense", at: 1, value: 7 },
+    { id: "e", type: "loot", at: 1, value: 5, note: "" }
+  ] }))
+  assert.deepEqual(clean.events.map((e) => e.id), ["a", "d", "e"])
+  assert.equal(clean.events[0].note, "Portal SAFE")
+  assert.equal(clean.events[1].note, "Portal")
+})
+
+test("removeEvent deletes an expense; totals subtract expenses from profit", () => {
+  let bz = withSet()
+  bz = ok(Bz.logDeath(bz, { setId: "s1", now: 1, id: "d1", value: 40000, prices: {} }))
+  bz = ok(Bz.logLoot(bz, { value: 100000, now: 2, id: "l1" }))
+  bz = ok(Bz.logExpense(bz, { value: 12000, now: 3, id: "x1" }))
+  bz = ok(Bz.logExpense(bz, { value: 8000, now: 4, id: "x2" }))
+  let t = plain(Bz.totals(bz))
+  assert.equal(t.spent, 20000)
+  assert.equal(t.expenses, 2)
+  assert.equal(t.profit, 40000)
+  assert.equal(t.lootPerDeath, 100000)
+  bz = ok(Bz.removeEvent(bz, "x1"))
+  assert.equal(Bz.totals(bz).profit, 52000)
 })

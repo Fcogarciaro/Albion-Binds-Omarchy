@@ -13,6 +13,7 @@
 // Loot:  { id, type: "loot", at, value, note, tomes? }
 //        tomes: { "<tier>": count } of untradeable tomes of insight; counted
 //        only, never part of the silver value or the profit.
+// Expense: { id, type: "expense", at, value (> 0), note }  (e.g. a paid portal)
 // Operations return { ok: true, blackzone } or { ok: false, error }.
 
 var SLOTS = [
@@ -195,12 +196,22 @@ function sanitizeDeathPiece(raw) {
   return { itemId: raw.itemId, quality: raw.quality, quantity: raw.quantity, price: price }
 }
 
+var DEFAULT_EXPENSE_NOTE = "Portal"
+
+function expenseEvent(id, at, value, note) {
+  var clean = typeof note === "string" ? note.trim().slice(0, MAX_NOTE) : ""
+  return { id: id, type: "expense", at: at, value: value, note: clean === "" ? DEFAULT_EXPENSE_NOTE : clean }
+}
+
 function sanitizeEvent(raw) {
   if (!raw || typeof raw !== "object") return null
   if (typeof raw.id !== "string" || raw.id === "") return null
   if (!isNonNegativeInt(raw.at) || !isNonNegativeInt(raw.value)) return null
   if (raw.type === "loot") {
     return lootEvent(raw.id, raw.at, raw.value, typeof raw.note === "string" ? raw.note.trim().slice(0, MAX_NOTE) : "", raw.tomes)
+  }
+  if (raw.type === "expense") {
+    return raw.value > 0 ? expenseEvent(raw.id, raw.at, raw.value, raw.note) : null
   }
   if (raw.type !== "death") return null
   if (typeof raw.setId !== "string" || raw.setId === "") return null
@@ -362,6 +373,16 @@ function logLoot(blackzone, input) {
   return { ok: true, blackzone: withEvents(bz, bz.events.concat([lootEvent(i.id, i.now, i.value, note, i.tomes)])) }
 }
 
+// input: { value (> 0), note?, now, id }. An empty note is stored as "Portal".
+function logExpense(blackzone, input) {
+  var bz = normalize(blackzone)
+  var i = input || {}
+  if (!isNonNegativeInt(i.value) || i.value <= 0) return fail("El gasto debe ser un número entero mayor que 0.")
+  var baseError = validEventBase(bz, i)
+  if (baseError) return fail(baseError)
+  return { ok: true, blackzone: withEvents(bz, bz.events.concat([expenseEvent(i.id, i.now, i.value, i.note)])) }
+}
+
 function removeEvent(blackzone, eventId) {
   var bz = normalize(blackzone)
   if (!hasId(bz.events, eventId)) return fail("No encontré ese registro.")
@@ -370,12 +391,12 @@ function removeEvent(blackzone, eventId) {
 
 // ---------- Queries ----------
 
-// Profit = loot - losses. bySet counts deaths per set id (removed sets keep
+// Profit = loot - losses - expenses (spent). bySet counts deaths per set id (removed sets keep
 // the name stored in their deaths). tomes counts insight tomes per tier
 // (no silver value). lootPerDeath is null without deaths.
 function totals(blackzone) {
   var bz = normalize(blackzone)
-  var result = { loot: 0, lost: 0, profit: 0, deaths: 0, loots: 0, bySet: {}, lootPerDeath: null, tomes: {}, tomeCount: 0 }
+  var result = { loot: 0, lost: 0, profit: 0, deaths: 0, loots: 0, bySet: {}, lootPerDeath: null, tomes: {}, tomeCount: 0, spent: 0, expenses: 0 }
   for (var i = 0; i < bz.events.length; i++) {
     var e = bz.events[i]
     if (e.type === "loot") {
@@ -385,6 +406,9 @@ function totals(blackzone) {
         result.tomes[tier] = (result.tomes[tier] || 0) + e.tomes[tier]
         result.tomeCount += e.tomes[tier]
       }
+    } else if (e.type === "expense") {
+      result.spent += e.value
+      result.expenses += 1
     } else if (e.type === "death") {
       result.lost += e.value
       result.deaths += 1
@@ -393,7 +417,7 @@ function totals(blackzone) {
       result.bySet[e.setId].lost += e.value
     }
   }
-  result.profit = result.loot - result.lost
+  result.profit = result.loot - result.lost - result.spent
   if (result.deaths > 0) result.lootPerDeath = Math.round(result.loot / result.deaths)
   return result
 }

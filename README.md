@@ -153,6 +153,10 @@ Cada parcela puede tener **un solo ciclo abierto** a la vez. Si se perdió la co
 
 Si te equivocas, puedes borrar: **Cancelar siembra** (ciclo abierto), **Eliminar** en una fila del historial, o **Eliminar parcela** (borra también sus ciclos). Pide confirmación: el primer toque cambia el botón a **¿Seguro?** y el segundo borra.
 
+### Registrar un gasto
+
+Si pagas para llegar a zona negra (por ejemplo el portal SAFE), abre **REGISTRAR GASTO**, escribe lo que costó y una nota (si la dejas vacía se guarda como «Portal»). Los gastos se restan de la ganancia y aparecen como **Gastado** en el resumen y como filas «Gasto» en el historial.
+
 ### Cómo se calcula la ganancia
 
 ```
@@ -225,10 +229,10 @@ En el mismo formulario puedes contar los **Tomos de conocimiento** que te cayero
 ### Cómo se calcula la ganancia
 
 ```
-ganancia = suma del botín − suma de las muertes
+ganancia = suma del botín − suma de las muertes − suma de los gastos
 ```
 
-- **Ganado** es la suma de tus botines, **Perdido** la suma del valor de tus muertes, y arriba ves el balance (en rojo si es negativo), el número de muertes y el botín medio por muerte.
+- **Ganado** es la suma de tus botines, **Perdido** la suma del valor de tus muertes, **Gastado** la suma de tus gastos, y arriba ves el balance (en rojo si es negativo), el número de muertes y el botín medio por muerte.
 - Cada set muestra cuántas veces murió y cuánto perdió. El botín no se asigna a un set, por eso la ganancia es total.
 - Los precios salen del [Albion Online Data Project](https://www.albion-online-data.com/) (servidor América): los suben **otros jugadores**, así que pueden estar **desactualizados o faltar**, sobre todo en calidades altas. Es solo una referencia: el valor final lo decides tú.
 
