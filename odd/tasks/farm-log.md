@@ -46,7 +46,7 @@ Albion has no API for island state, so the user cannot see what a rotation actua
   - `addPlot`, `plantCycle`, `harvestCycle` (returning new data, immutable).
   - `cycleProfit`, plus totals per plot, per crop and overall.
   - Route: delegated writer.
-- [ ] T2: `farm/Prices.js`, pure and test-first: build the API URL and parse the response into `{ itemId: price | null }`. The QML fetch uses `XMLHttpRequest` only if a stock shell plugin proves it works there. Otherwise prices stay manual and the evidence is recorded. Route: same writer.
+- [x] T2: `farm/Prices.js`, pure and test-first: build the API URL and parse the response into `{ itemId: price | null }`. The QML fetch uses `XMLHttpRequest` only if a stock shell plugin proves it works there. Otherwise prices stay manual and the evidence is recorded. Route: same writer.
 - [ ] T3: `farm/FarmView.qml`. Contents:
   - Plots list with the open cycle state.
   - Add plot.
@@ -73,3 +73,8 @@ Albion has no API for island state, so the user cannot see what a rotation actua
 - farm/Farm.js is `.pragma library`, independent. Farm shape is `{ plots, cycles, settings: { taxRate } }`. Also exports parseInteger/parsePercent/formatPercent/formatSilver for the view.
 - Storage wiring: `Storage.parseData(text, sanitizeFarm)` takes an injected sanitizer; Storage itself validates `farm.settings.taxRate` (default 0.065). `DataStore.qml` imports `../farm/Farm.js` (relative parent JS import: stock pattern plugins/notifications/components/NotificationCard.qml:10) and passes `Farm.sanitizeFarm`. Files with empty farm arrays load as before plus the default settings; version stays 1.
 - qmllint shared/DataStore.qml: same single baseline warning (QProcess::ExitStatus) before and after.
+
+### T2 (writer) - 86a337e
+- RED: tests/prices.test.mjs failed to load (module missing); GREEN: `npm test` 96/96 (87 before; 9 new).
+- farm/Prices.js: `buildUrl(ids, city, server)` (unknown server falls back to west, unsafe ids dropped, city URI-encoded), `parsePrices(json, city, wantedIds?)` -> `{ok, prices}` / `{ok:false, error}` (0, negative or non-numeric -> null; lowest non-zero price when a city repeats an item), `CITIES`, `SERVERS`.
+- Fetch mechanism: XMLHttpRequest is NOT proven in stock plugins (`rg "XMLHttpRequest|fetch\("` over /usr/share/omarchy/shell: no hits; the only hits are third-party mirador test files under ~/.config/omarchy/plugins, which is not proof). Stock pattern used instead: `Process { command: ["curl","-fsS","--max-time",N,url]; stdout: StdioCollector { waitForEnd: true; onStreamFinished } }` at /usr/share/omarchy/shell/plugins/panels/weather/Panel.qml:186,277,335,419-429. T3 uses it.
