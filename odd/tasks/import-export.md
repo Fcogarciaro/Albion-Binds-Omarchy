@@ -22,7 +22,7 @@ Binds live only in this PC's `~/.config/omarchy/shell.json`. The user wants to b
 
 ## Tasks
 - [x] T1: `Model.exportBinds(binds, enabled)` and `Model.parseImport(text)`, test-first. Route: delegated writer (2+ non-trivial files).
-- [ ] T2: `Panel.qml` "RESPALDO" section with Exportar/Importar wired to a FileView, plus success and error feedback. Route: same writer.
+- [x] T2: `Panel.qml` "RESPALDO" section with Exportar/Importar wired to a FileView, plus success and error feedback. Route: same writer.
 - [ ] T3: README section "Llevar tus atajos a otra PC". Route: same writer.
 
 ## Acceptance criteria
@@ -34,4 +34,5 @@ Binds live only in this PC's `~/.config/omarchy/shell.json`. The user wants to b
 `single-pr` on branch `feat/import-export`. RDD is off.
 
 ## Progress / evidence
-- T1: RED observed (10 new tests failing: `Model.parseImport is not a function`, 35 pass / 10 fail). GREEN after implementing `exportBinds` and `parseImport` in Model.js: 45 pass / 0 fail via `npm test`. Route: delegated writer (2+ files). Commit: see T2 entry.
+- T1: RED observed (10 new tests failing: `Model.parseImport is not a function`, 35 pass / 10 fail). GREEN after implementing `exportBinds` and `parseImport` in Model.js: 45 pass / 0 fail via `npm test`. Route: delegated writer (2+ files). Commit: 1c28d7e.
+- T2: Panel.qml RESPALDO section, FileView `backupFile` (atomicWrites, printErrors off, no watchChanges). No QML test framework; verified by diff review and stock FileView patterns (shell.qml:121-143). `onSaved`/`onSaveFailed` are not used by stock code (unverified locally). Commit: see T3 entry.

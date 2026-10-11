@@ -19,6 +19,9 @@ Panel {
   property string newTrigger: "mouse:275"
   property string errorText: ""
   property string pendingLua: ""
+  property string backupPath: Quickshell.env("HOME") + "/albion-binds.json"
+  property string backupText: ""
+  property string backupAction: ""
   readonly property bool editing: customTriggerField.activeFocus || comboField.activeFocus || dropdown.popupOpen
 
   function save(changes) {
@@ -70,7 +73,58 @@ Panel {
     save({ binds: next })
   }
 
+  function exportBackup() {
+    errorText = ""
+    backupText = ""
+    backupAction = "export"
+    backupFile.setText(Model.exportBinds(root.binds, root.masterEnabled))
+  }
+
+  function importBackup() {
+    errorText = ""
+    backupText = ""
+    backupAction = "import"
+    backupFile.reload()
+  }
+
+  function finishImport(text) {
+    var result = Model.parseImport(text)
+    if (!result.ok) { errorText = result.error; return }
+    save({ binds: result.binds, enabled: result.enabled })
+    backupText = "Importados " + result.binds.length + " atajos."
+      + (result.skipped > 0 ? " (" + result.skipped + " ignorados)" : "")
+  }
+
   Component.onCompleted: applyToHyprland()
+
+  // Loading is also triggered once when the path is set; backupAction keeps
+  // that initial load from being treated as an import.
+  FileView {
+    id: backupFile
+    path: root.backupPath
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      if (root.backupAction !== "import") return
+      root.backupAction = ""
+      root.finishImport(text())
+    }
+    onLoadFailed: function(error) {
+      if (root.backupAction !== "import") return
+      root.backupAction = ""
+      root.errorText = "No encontré ~/albion-binds.json."
+    }
+    onSaved: {
+      if (root.backupAction !== "export") return
+      root.backupAction = ""
+      root.backupText = "Exportado a ~/albion-binds.json (" + root.binds.length + " atajos)."
+    }
+    onSaveFailed: function(error) {
+      if (root.backupAction !== "export") return
+      root.backupAction = ""
+      root.errorText = "No pude guardar ~/albion-binds.json."
+    }
+  }
 
   Process {
     id: applyProc
@@ -337,6 +391,65 @@ Panel {
             width: parent.width
             text: root.errorText
             color: Color.urgent
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+        }
+
+        PanelSeparator { foreground: root.bar.foreground }
+
+        // ---------- Backup ----------
+        Column {
+          width: parent.width
+          spacing: Style.space(8)
+
+          PanelSectionHeader {
+            text: "RESPALDO"
+            foreground: root.bar.foreground
+            fontFamily: root.bar.fontFamily
+          }
+
+          Text {
+            width: parent.width
+            textFormat: Text.PlainText
+            text: "~/albion-binds.json"
+            color: root.bar.foreground
+            opacity: 0.6
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideRight
+          }
+
+          Row {
+            spacing: Style.space(6)
+
+            Button {
+              text: "Exportar"
+              foreground: root.bar.foreground
+              fontFamily: root.bar.fontFamily
+              fontSize: Style.font.bodySmall
+              bordered: true
+              onClicked: root.exportBackup()
+            }
+
+            Button {
+              text: "Importar"
+              foreground: root.bar.foreground
+              fontFamily: root.bar.fontFamily
+              fontSize: Style.font.bodySmall
+              bordered: true
+              onClicked: root.importBackup()
+            }
+          }
+
+          Text {
+            visible: root.backupText !== ""
+            width: parent.width
+            textFormat: Text.PlainText
+            text: root.backupText
+            color: root.bar.foreground
+            opacity: 0.7
             font.family: root.bar.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.WordWrap
