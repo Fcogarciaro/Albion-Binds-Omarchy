@@ -43,7 +43,7 @@ The exact split may be adjusted to what QML imports allow. Relative `import "bin
 - [x] T1: Move `Model.js` into feature modules (`binds/`, `backup/`) with no behavior change. Update the test loader and keep the suite green. Route: delegated writer.
 - [x] T2: Rename the id, the Lua module and the marker. Add legacy cleanup to `apply.sh`, test-first. Route: same writer.
 - [x] T3: Backup: new app id and path, accept legacy `albion-binds` files, fall back to `~/albion-binds.json` (test-first for the pure parts). Route: same writer.
-- [ ] T4: `shared/Storage.js` skeleton (default doc, version, validate), test-first, plus a FileView-backed load/save in QML. Route: same writer.
+- [x] T4: `shared/Storage.js` skeleton (default doc, version, validate), test-first, plus a FileView-backed load/save in QML. Route: same writer.
 - [ ] T5: Tabbed bar panel (Atajos, Cultivos, Zona negra) and `BindsView.qml` extraction. Research the `panel` kind and either add the window skeleton or document why it is deferred. Route: same writer.
 - [ ] T6: README: new name, fresh install, migration from Albion Binds, uninstall. Route: same writer.
 
@@ -68,7 +68,11 @@ The exact split may be adjusted to what QML imports allow. Relative `import "bin
 - apply.sh: target albion-companion.lua, new marker/comment; removes exact legacy loader line (grep -vxF), legacy comment (prefix) and ~/.config/hypr/albion-binds.lua; counts as a change (reload). `bash -n` ok.
 - manifest id/name/version 2.0.0, Panel moduleName/titles, Lua header renamed.
 
-### T3 (same writer)
+### T3 (same writer) - 782871b
 - RED: export app name + legacy accept tests failing (3 fails). GREEN: 53/53.
 - Backup.js: EXPORT_APP albion-companion, LEGACY_APPS [albion-binds]. Panel.qml: export to ~/albion-companion.json; import reads it and on loadFailed reloads a second FileView on ~/albion-binds.json; messages name the file used. Not executable here (QML).
+
+### T4 (same writer)
+- RED: tests/storage.test.mjs failed (module missing). GREEN: 63/63.
+- shared/Storage.js (DATA_VERSION, defaultData, parseData, serializeData); shared/DataStore.qml: FileView load on start (missing file keeps defaults, nothing is created), `saveData()` runs `mkdir -p` first (FileView directory creation is not documented; stock pattern plugins/notifications/Service.qml:414) then setText. Panel.qml instantiates `DataStore { id: dataStore }` via `import "shared"`.
 

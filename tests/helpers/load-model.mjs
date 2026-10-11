@@ -12,6 +12,7 @@ export function loadModule(relPath) {
 
 export const loadBinds = () => loadModule("binds/Binds.js")
 export const loadBackup = () => loadModule("backup/Backup.js")
+export const loadStorage = () => loadModule("shared/Storage.js")
 
 // Values created inside the vm context have foreign prototypes, which makes
 // deepStrictEqual fail. A JSON round trip yields plain host-realm values.

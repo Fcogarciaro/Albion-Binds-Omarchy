@@ -5,6 +5,7 @@ import qs.Commons
 import qs.Ui
 import "binds/Binds.js" as Binds
 import "backup/Backup.js" as Backup
+import "shared"
 
 Panel {
   id: root
@@ -101,6 +102,9 @@ Panel {
     setBackupStatus("Importados " + result.binds.length + " atajos desde " + fileLabel + "."
       + (result.skipped > 0 ? " (" + result.skipped + " ignorados)" : ""), false)
   }
+
+  // Tracker data (phases 2 and 3). Phase 1 only loads it; nothing writes yet.
+  DataStore { id: dataStore }
 
   Component.onCompleted: applyToHyprland()
 
