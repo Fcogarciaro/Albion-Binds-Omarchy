@@ -31,7 +31,7 @@ Panel {
   property bool backupFailed: false
   property string backupAction: ""
   property string currentTab: "binds"
-  readonly property bool editing: currentTab === "binds" && bindsView.editing
+  readonly property bool editing: (currentTab === "binds" && bindsView.editing) || (currentTab === "farm" && farmView.editing)
 
   function save(changes) {
     root.settings = Object.assign({}, root.settings, changes)
@@ -91,8 +91,9 @@ Panel {
       + (result.skipped > 0 ? " (" + result.skipped + " ignorados)" : ""), false)
   }
 
-  // Tracker data (phases 2 and 3). Phase 1 only loads it; nothing writes yet.
+  // Tracker data (farm log, black zone). Tabs read and save it through `store`.
   DataStore { id: dataStore }
+  readonly property var store: dataStore
 
   Component.onCompleted: applyToHyprland()
 
@@ -217,9 +218,11 @@ Panel {
         }
 
         FarmView {
+          id: farmView
           width: parent.width
           visible: root.currentTab === "farm"
           owner: root
+          catcher: keyCatcher
         }
 
         BlackzoneView {

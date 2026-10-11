@@ -200,3 +200,23 @@ test("formatSilver: thousands separators and sign", () => {
   assert.equal(Farm.formatSilver(-46850), "-46,850")
   assert.equal(Farm.formatSilver(null), "-")
 })
+
+test("openCycle: finds the open cycle of a plot, null otherwise", () => {
+  const farm = withOpenCycle()
+  assert.equal(Farm.openCycle(farm, "p1").id, "c1")
+  assert.equal(Farm.openCycle(farm, "zzz"), null)
+  const closed = ok(Farm.harvestCycle(farm, { cycleId: "c1", cropsHarvested: 1, seedsReturned: 0, cropPrice: 1, now: 2000 }))
+  assert.equal(Farm.openCycle(closed, "p1"), null)
+})
+
+test("closedCycles: newest harvest first, optional limit", () => {
+  let farm = withPlot()
+  const times = [[10, 20], [30, 40], [50, 60]]
+  times.forEach(([plant, harvest], n) => {
+    farm = ok(Farm.plantCycle(farm, { plotId: "p1", crop: "turnip", seedsPlanted: 1, seedPrice: 0, now: plant, id: "c" + n }))
+    farm = ok(Farm.harvestCycle(farm, { cycleId: "c" + n, cropsHarvested: 1, seedsReturned: 0, cropPrice: 1, now: harvest }))
+  })
+  farm = ok(Farm.plantCycle(farm, { plotId: "p1", crop: "turnip", seedsPlanted: 1, seedPrice: 0, now: 70, id: "open" }))
+  assert.deepEqual(plain(Farm.closedCycles(farm)).map((c) => c.id), ["c2", "c1", "c0"])
+  assert.deepEqual(plain(Farm.closedCycles(farm, 2)).map((c) => c.id), ["c2", "c1"])
+})

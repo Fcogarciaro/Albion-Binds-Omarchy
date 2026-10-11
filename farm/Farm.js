@@ -256,3 +256,20 @@ function formatSilver(value) {
   var digits = String(Math.abs(Math.round(value)))
   return sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
+
+// ---------- Queries ----------
+
+function openCycle(farm, plotId) {
+  var f = normalizeFarm(farm)
+  for (var i = 0; i < f.cycles.length; i++) {
+    if (f.cycles[i].plotId === plotId && f.cycles[i].harvestedAt === null) return f.cycles[i]
+  }
+  return null
+}
+
+// Closed cycles, newest harvest first; limit (optional) caps the result.
+function closedCycles(farm, limit) {
+  var closed = normalizeFarm(farm).cycles.filter(function(c) { return c.harvestedAt !== null })
+  closed.sort(function(a, b) { return b.harvestedAt - a.harvestedAt })
+  return limit > 0 ? closed.slice(0, limit) : closed
+}
