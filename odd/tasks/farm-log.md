@@ -55,7 +55,7 @@ Albion has no API for island state, so the user cannot see what a rotation actua
   - Tax field.
   - Saves through `dataStore`.
   - Route: same writer.
-- [ ] T4: README section "Cultivos": how to log a cycle, how profit is computed, where the data lives. Route: same writer.
+- [x] T4: README section "Cultivos": how to log a cycle, how profit is computed, where the data lives. Route: same writer.
 
 ## Acceptance criteria
 - `npm test` green, with new tests covering profit math, sanitizing and price parsing.
@@ -86,3 +86,9 @@ Albion has no API for island state, so the user cannot see what a rotation actua
 - Price prefill uses the stock Process+curl+StdioCollector pattern (weather Panel.qml:186,419-429). `curl --max-time 8`; any failure/empty/zero only sets a status message, fields stay editable.
 - qmllint: plain run only shows unresolved `qs.*` imports (baseline, same for BindsView). With a symlink dir exposing the shell as module `qs` (`-I <dir containing qs -> /usr/share/omarchy/shell>`) the imports resolve; FarmView.qml and Panel.qml then show only the baseline categories (Unqualified access of `owner`/ids inside delegates, `Style.font.*` "not found on QObject") identical to BindsView.qml, plus the baseline QProcess::ExitStatus warning in Panel.qml. No new error classes.
 - NOT verified: QML never run in the live shell (layout at 380px, Dropdown inside Row, focus handling).
+
+### T4 (writer) - c9f4747
+- README: new section "Cultivos" (how to log a cycle, profit formula, 6.5 % default tax, price prefill caveats, data location); tabs bullet and intro no longer say Cultivos is upcoming; "Cómo funciona" bullet now states data.json holds the Cultivos data. Docs only; `npm test` 98/98.
+
+## Final verification
+- `npm test`: 98/98. qmllint: no new error classes (see T3). QML never run live.
