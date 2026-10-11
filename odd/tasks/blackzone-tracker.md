@@ -154,9 +154,24 @@ Left unchanged (already official or no game term):
 ## Follow-up: tomes of insight in loot (requested 2026-10-11)
 - The user wants to count untradeable "Tomo de conocimiento" drops per tier, only to know how many they have. They have no silver value and do not affect profit.
 - Game ids are `T<n>_SKILLBOOK_NONTRADABLE`, with ES-ES name "Tomo de conocimiento del <grado>". T1-T3 were seen by the parent. The writer verifies the full tier range.
-- [ ] T5: Loot event gets an optional `tomes: { "<tier>": count }`.
+- [x] T5: Loot event gets an optional `tomes: { "<tier>": count }`.
   - Pure, test-first: sanitize, `logLoot` input and totals per tier.
   - The loot form gets per-tier counters.
   - The summary and history show the counts.
   - README.
   - Branch `feat/insight-tomes`. Route: delegated writer.
+- [x] T6 (requested 2026-10-11): travel expenses.
+  - New event `{ type: "expense", value > 0, note }` (default note "Portal"), `logExpense`, totals `spent`/`expenses`, `profit = loot - lost - spent`.
+  - "REGISTRAR GASTO" section, "Gastado" in the summary, expense rows in the history, README. Route: same writer.
+
+### T5 (writer) - 4b8a1fc
+- Tomes verified in ao-bin-dumps (ES-ES): T1 principiante, T2 novato, T3 obrero, T4 iniciado, T5 experto, T6 maestro, T7 gran maestro, T8 anciano ("Tomo de conocimiento del <grado>").
+- `Blackzone.js`: `TOME_TIERS`, optional loot `tomes` (valid tiers, counts 1..999999, zeros dropped), `logLoot` accepts value 0 with or without tomes, `totals` gains `tomes` and `tomeCount`; profit unchanged.
+- RED: 5 of 170 failing; GREEN: 170/170.
+- View: 8 per-tier counters (Flow of 4 per row) in REGISTRAR BOTÍN; summary lists the official name per tier with tomes; history loot rows show "Tomos: T3 x2". Counters push values through `setTomeText`, no delegate ids outside the Repeater.
+- qmllint: 0 errors; same categories (counts grew). Delegate-id script: 0 violations. QML not run live.
+
+### T6 (writer) - 4b43ce0
+- RED: 4 of 173 failing; GREEN: 173/173.
+- qmllint: 0 errors, no new categories; delegate-id script: 0 violations. QML not run live.
+
