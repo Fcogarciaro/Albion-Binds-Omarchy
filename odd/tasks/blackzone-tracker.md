@@ -98,3 +98,33 @@ The user wants to know whether black zone runs pay off. Albion exposes neither d
   - 4 Sobresaliente
   - 5 Obra maestra
 - The stored numeric quality values did not change, only the labels.
+
+## Fix: official Spanish game names
+Source: ao-bin-dumps `localization.xml` (ES-ES) and `formatted/items.json` (`LocalizedNames["ES-ES"]`). Only labels changed; item ids, slot values and stored data are untouched.
+
+| Term | Old | New | Evidence |
+|------|-----|-----|----------|
+| Crop T1 | Zanahoria | Zanahorias | `T1_CARROT` |
+| Crop T2 | Frijol | Frijoles | `T2_BEAN` |
+| Crop T3 | Trigo | Manojo de trigo | `T3_WHEAT` |
+| Crop T4 | Nabo | Rábanos | `T4_TURNIP` |
+| Crop T5 | Repollo | Coles | `T5_CABBAGE` |
+| Crop T6 | Papa | Patatas | `T6_POTATO` |
+| Crop T7 | Maíz | Fardo de maíz | `T7_CORN` |
+| Crop T8 | Calabaza | Calabaza | `T8_PUMPKIN` (unchanged) |
+| Slot head | Casco | Cabeza | `@EQUIPMENT_SLOT_HEAD` |
+| Slot armor | Armadura | Pecho | `@EQUIPMENT_SLOT_ARMOR` |
+| Slot shoes | Botas | Zapatos | `@EQUIPMENT_SLOT_SHOES` |
+| Slot mainhand | Arma | Arma principal | `@EQUIPMENT_SLOT_MAINHAND` |
+| Slot offhand | Mano izquierda | Arma secundaria | `@EQUIPMENT_SLOT_OFFHAND` |
+| Slot cape/bag/mount/potion/food | Capa/Bolsa/Montura/Poción/Comida | same | `@EQUIPMENT_SLOT_CAPE/BAG/MOUNT/POTION/FOOD` |
+| Tier label | Tier | Nivel | `@LOADOUTS_UI_MAIN_SETTING_TIER` |
+| Enchant label | Encant. | Encantamiento | `@LOADOUTS_UI_MAIN_SETTING_ENCHANTMENT` |
+| Food / potion names | generic ("Sopa", "… asado", grade stripped) | official per tier ("Sopa de trigo", "Pollo asado", "Poción de curación mayor"); list label = lowest tier's name | `T3_MEAL_SOUP`, `T3_MEAL_ROAST`, `T6_POTION_HEAL` in items.json; catalog gains `names` per tier |
+
+Left unchanged (already official or no game term):
+- Cities: `@JOURNAL_CITIES_*` ES-ES equals the current names (Caerleon, Bridgewatch, Lymhurst, Martlock, Fort Sterling, Thetford, Brecilien).
+- Calidad (`@LOADOUTS_UI_MAIN_SETTING_QUALITY`), Premium (`@GENERIC_PREMIUM`), Plata (`@GENERIC_SILVER`), Botín (`@CHAT_CHANNELNAME_LOOT`), Cantidad (`@GENERIC_QUANTITY`), Foco (`@CRAFTING_FOCUS`), Riego (`@FARMABLE_ACTION_WATERING`): "Riego con foco" already combines two official terms.
+- Gear names: base name keeps the official name minus the tier grade ("del maestro"), since Nivel is shown separately.
+- "Sets" (game: "Equipamientos"), Ranura, Guardar, Eliminar, Parcela, Plantar/Cosechar: different concept or no game equivalent.
+- Note: "Encantamiento" and "Arma secundaria" are longer than the old labels; the dropdowns elide if tight (QML not run live).
