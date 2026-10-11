@@ -1,0 +1,75 @@
+# Phase 2a: Farm profit log (Cultivos)
+
+## Objective
+Turn the Cultivos tab into a real profit log for the user's island. The user owns one island with several plots and rotates crops by price. Each growth cycle per plot is recorded (planted, then harvested), and the plugin shows the real profit per cycle, per plot and in total.
+
+## Problem / Why
+Albion has no API for island state, so the user cannot see what a rotation actually earned. Market prices are crowd-sourced through the Albion Online Data Project and can prefill price fields, but the user's actual numbers win.
+
+## Decisions
+- Scope: **crops only** (T1 carrot to T8 pumpkin). Herbs and animals are out of scope for now.
+- The rotation planner ("which crop pays most right now") is **phase 2b**, not this feature.
+- Data lives in `farm.plots` / `farm.cycles` of `~/.local/share/albion-companion/data.json` (DataStore from phase 1). The document stays at `version: 1`, because the farm arrays were empty placeholders until now. Malformed entries are dropped on parse.
+- Plot: `{ id, name }`.
+- Cycle:
+  ```
+  { id, plotId, crop, plantedAt, seedsPlanted, seedPrice,
+    harvestedAt|null, cropsHarvested, seedsReturned, cropPrice }
+  ```
+  An open cycle has `harvestedAt: null`. At most one open cycle per plot.
+- Profit of a closed cycle:
+  ```
+  cropsHarvested * cropPrice * (1 - taxRate) + (seedsReturned - seedsPlanted) * seedPrice
+  ```
+  Seeds are valued at the price entered when planting.
+- Tax rate: `farm.settings.taxRate`, default `0.065` (4% premium sales tax plus 2.5% sell-order setup fee). Editable in the tab.
+- Prices: optional prefill from `https://west.albion-online-data.com/api/v2/stats/prices/<IDS>?locations=<city>&qualities=1`.
+  - Default server is `west` (Americas).
+  - City is chosen in the tab.
+  - `sell_price_min == 0` means there is no data, so the field is left empty.
+  - The user can always type the price.
+  - A network failure never blocks logging.
+- Item ids were verified live on 2026-10-11 (see T1 evidence for the full crop/seed check):
+  - Crops: `T4_TURNIP`, `T6_POTATO`, `T8_PUMPKIN`.
+  - Seeds: `T4_FARM_TURNIP_SEED`.
+  - Remaining ids follow the same `T<n>_<CROP>` / `T<n>_FARM_<CROP>_SEED` pattern. They must be checked once against the API before they are hardcoded.
+- UI copy is in Spanish (the existing panel is Spanish). Code, comments and identifiers are in English.
+
+## TDD
+- Strict, ON (session config). Runner: `npm test` (`node --test "tests/**/*.test.mjs"`).
+- QML is not executable here. Run `qmllint` (/usr/lib/qt6/bin/qmllint) on the changed QML files.
+
+## Tasks
+- [x] T1: `farm/Farm.js`, pure and test-first. Contents:
+  - Crop catalog (tier, Spanish name, crop id, seed id).
+  - Plot and cycle sanitizing (wired into `Storage.parseData`).
+  - `addPlot`, `plantCycle`, `harvestCycle` (returning new data, immutable).
+  - `cycleProfit`, plus totals per plot, per crop and overall.
+  - Route: delegated writer.
+- [ ] T2: `farm/Prices.js`, pure and test-first: build the API URL and parse the response into `{ itemId: price | null }`. The QML fetch uses `XMLHttpRequest` only if a stock shell plugin proves it works there. Otherwise prices stay manual and the evidence is recorded. Route: same writer.
+- [ ] T3: `farm/FarmView.qml`. Contents:
+  - Plots list with the open cycle state.
+  - Add plot.
+  - Plant form (crop, seeds, seed price) and harvest form (crops, seeds returned, crop price) with price prefill.
+  - Closed-cycle history with profit, plus totals.
+  - Tax field.
+  - Saves through `dataStore`.
+  - Route: same writer.
+- [ ] T4: README section "Cultivos": how to log a cycle, how profit is computed, where the data lives. Route: same writer.
+
+## Acceptance criteria
+- `npm test` green, with new tests covering profit math, sanitizing and price parsing.
+- `qmllint` has no new errors on the changed QML.
+- Existing data files (empty farm arrays) load unchanged.
+
+## Delivery
+`single-pr` on branch `feat/farm-log`. RDD: per user-owned switch.
+
+## Progress / evidence
+
+### T1 (writer) - 5bb4831
+- API check (west server, 6 royal cities, quality 1): all 16 ids returned sell_price_min > 0 except `T2_FARM_BEAN_SEED` (all cities 0, no market listing at the time). That id is CONFIRMED to exist by the ao-bin-dumps item list (`T2_FARM_BEAN_SEED: Bean Seeds`, raw.githubusercontent.com/ao-data/ao-bin-dumps/master/formatted/items.txt), so it is kept; its price prefill will often be empty. Price-confirmed: T1_CARROT, T1_FARM_CARROT_SEED, T2_BEAN, T3_WHEAT, T3_FARM_WHEAT_SEED, T4_TURNIP, T4_FARM_TURNIP_SEED, T5_CABBAGE, T5_FARM_CABBAGE_SEED, T6_POTATO, T6_FARM_POTATO_SEED, T7_CORN, T7_FARM_CORN_SEED, T8_PUMPKIN, T8_FARM_PUMPKIN_SEED.
+- RED: tests/farm.test.mjs failed to load (module missing); then storage tests: 10 failing after adding the new expectations. GREEN: `npm test` 87/87 (63 before).
+- farm/Farm.js is `.pragma library`, independent. Farm shape is `{ plots, cycles, settings: { taxRate } }`. Also exports parseInteger/parsePercent/formatPercent/formatSilver for the view.
+- Storage wiring: `Storage.parseData(text, sanitizeFarm)` takes an injected sanitizer; Storage itself validates `farm.settings.taxRate` (default 0.065). `DataStore.qml` imports `../farm/Farm.js` (relative parent JS import: stock pattern plugins/notifications/components/NotificationCard.qml:10) and passes `Farm.sanitizeFarm`. Files with empty farm arrays load as before plus the default settings; version stays 1.
+- qmllint shared/DataStore.qml: same single baseline warning (QProcess::ExitStatus) before and after.
