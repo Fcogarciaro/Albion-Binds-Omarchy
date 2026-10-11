@@ -27,9 +27,9 @@ The user rotates crops by price on one island with several plots, and wants to s
 ## Tasks
 - [x] T1: `DataStore.qml` reloads on external file change (FileView watch). Avoid a reload loop on its own writes, and never drop a pending save. Verify the API in the Quickshell qmltypes. Route: delegated writer.
 - [x] T2: Research the game yield constants with sources: crops per seed, seed return with and without premium/focus, and seeds per farm plot. Route: delegated research worker, read-only.
-- [ ] T3: `farm/Planner.js`, pure and test-first: per-crop yield from history with a fallback to the estimates, expected profit and ranking. Route: delegated writer.
-- [ ] T4: Planner section in `FarmView.qml`: city, fetch all crop and seed prices in one request, ranked list with source label. Route: same writer.
-- [ ] T5: README: planner section, plus how to sync with Syncthing. Route: same writer.
+- [x] T3: `farm/Planner.js`, pure and test-first: per-crop yield from history with a fallback to the estimates, expected profit and ranking. Route: delegated writer.
+- [x] T4: Planner section in `FarmView.qml`: city, fetch all crop and seed prices in one request, ranked list with source label. Route: same writer.
+- [x] T5: README: planner section, plus how to sync with Syncthing. Route: same writer.
 
 ## Acceptance criteria
 - `npm test` green.
@@ -82,3 +82,19 @@ Gaps, all exposed as editable planner settings instead of guessed:
 - Whether premium affects seed return is unknown. Assumed no.
 - Focus cost (1000) is per plot or per seed: unknown. Not used in profit.
 - Settings: premium (default on, consistent with the 4% tax), focus watering (default on), seeds per plot (default 9).
+
+### T3 (writer) - 0c55e27
+- Route: delegated writer. TDD strict, runner `npm test`. RED: 98 pass / 16 fail of 114 (planner.test.mjs failed to load, plus new farm/storage settings tests). GREEN: 128/128.
+- `farm/Planner.js` (`.pragma library`, no imports; catalog injected as third arg of `rankCrops(farm, prices, catalog)`): constants with ao-bin-dumps / wiki URLs, `estimatedYield`, `historyYield`, `expectedProfit`, `rankCrops`.
+- Settings `premium` (true), `focus` (true), `seedsPerPlot` (9, int 1..1000) in `farm.settings` beside `taxRate`; validated in `Farm.normalizeSettings`/`sanitizeFarm` and `Storage.settingsOr`; `Farm.setPlannerSettings`; `setTaxRate` keeps them. Version stays 1; old files load with defaults. Existing test expectations updated for the new default settings.
+- Missing seed price: if net seeds (seedsPerPlot * (return - 1)) is 0 the profit is exact; otherwise profit counts crop sales only and the row is `partial: true`. Ranking: complete rows by profit desc, then partial rows, then no-crop-price rows (profit null, "sin precio").
+
+### T4 (writer) - 7ef40f3
+- `FarmView.qml`: collapsible "PLANIFICADOR" section (Mostrar/Ocultar, collapsed by default; first expand fetches), city dropdown + Actualizar, Premium and Riego con foco `ToggleSwitch`es, seeds-per-plot field, ranked list (position, tier, name, profit via `Farm.formatSilver`, source label, "sin precio", "parcial"). One Process+curl request for all crop and seed ids; failures only set a status message. Settings persist through `commit(result)`.
+- qmllint (`qs` symlink): only the baseline categories (`unqualified`, `missing-property` for `Style.font.*`); counts rose for the same categories only.
+- NOT verified: QML never run live (layout at ~380px, toggles, fetch).
+
+### T5 (writer) - 71056f6
+- README "Cultivos": new "Planificador de rotación" subsection (what it shows, historial vs estimado, settings, estimates approximate).
+- Sync docs deferred: tool not chosen (no "Sincronizar entre PCs" section written, per parent).
+
