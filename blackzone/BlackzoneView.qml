@@ -459,8 +459,30 @@ Column {
     }
   }
 
+  // Large window: two lanes side by side. Sections below move into them when
+  // `wide`; otherwise they stay direct children of this Column, as before.
+  Row {
+    id: lanes
+    visible: view.wide
+    width: parent.width
+    spacing: Style.space(16)
+
+    Column {
+      id: leftLane
+      width: (lanes.width - lanes.spacing) / 2
+      spacing: view.spacing
+    }
+
+    Column {
+      id: rightLane
+      width: (lanes.width - lanes.spacing) / 2
+      spacing: view.spacing
+    }
+  }
+
   // ---------- Summary ----------
   Column {
+    parent: view.wide ? rightLane : view
     width: parent.width
     spacing: Style.space(8)
 
@@ -499,10 +521,11 @@ Column {
 
   // ---------- Sets ----------
   Column {
+    parent: view.wide ? leftLane : view
     width: parent.width
     spacing: Style.space(8)
 
-    PanelSeparator { foreground: owner.bar.foreground }
+    PanelSeparator { visible: !view.wide; foreground: owner.bar.foreground }
 
     Item {
       width: parent.width
@@ -847,6 +870,7 @@ Column {
 
   // ---------- Death ----------
   Column {
+    parent: view.wide ? leftLane : view
     width: parent.width
     spacing: Style.space(8)
 
@@ -1011,6 +1035,7 @@ Column {
 
   // ---------- Loot ----------
   Column {
+    parent: view.wide ? leftLane : view
     width: parent.width
     spacing: Style.space(8)
 
@@ -1121,6 +1146,7 @@ Column {
 
   // ---------- Expenses ----------
   Column {
+    parent: view.wide ? leftLane : view
     width: parent.width
     spacing: Style.space(8)
 
@@ -1201,6 +1227,7 @@ Column {
   }
 
   Text {
+    parent: view.wide ? leftLane : view
     visible: view.errorText !== "" || view.store.error !== ""
     width: parent.width
     textFormat: Text.PlainText
@@ -1213,6 +1240,7 @@ Column {
 
   // ---------- History ----------
   Column {
+    parent: view.wide ? rightLane : view
     visible: view.history.length > 0
     width: parent.width
     spacing: Style.space(8)
