@@ -81,6 +81,10 @@ Botón lateral abajo  →  SHIFT+N    [■■] 🗑
 AGREGAR ATAJO
 Botón: [ Botón lateral abajo        ▾ ]
 [ Atajo en Albion (ej. SHIFT+N) ] [Agregar]
+──────────────────────────────────────────
+RESPALDO
+~/albion-binds.json
+[Exportar] [Importar]
 ```
 
 ### Agregar un atajo nuevo
@@ -109,6 +113,16 @@ Modificadores que puedes usar: `SHIFT`, `CTRL`, `ALT` y `SUPER`. Se unen con `+`
 Si la espada se ve **opaca**, no hay ningún atajo funcionando: o están en pausa, o todos están apagados.
 
 Los cambios se aplican al instante. No tienes que reiniciar nada.
+
+### 🔁 Llevar tus atajos a otra PC
+
+1. En la PC donde ya tienes tus atajos, abre el panel y presiona **Exportar**.
+   Se crea el archivo `~/albion-binds.json` en tu carpeta personal.
+2. Copia ese archivo a la carpeta personal de la otra PC (USB, Drive, Syncthing…).
+3. En la otra PC, abre el panel y presiona **Importar**.
+
+> **Ojo:** importar **reemplaza** tus atajos actuales (y el interruptor general) por los del archivo.
+> Si el archivo tiene atajos inválidos, se ignoran y el panel te dice cuántos.
 
 ---
 
