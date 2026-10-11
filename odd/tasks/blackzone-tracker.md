@@ -128,3 +128,12 @@ Left unchanged (already official or no game term):
 - Gear names: base name keeps the official name minus the tier grade ("del maestro"), since Nivel is shown separately.
 - "Sets" (game: "Equipamientos"), Ranura, Guardar, Eliminar, Parcela, Plantar/Cosechar: different concept or no game equivalent.
 - Note: "Encantamiento" and "Arma secundaria" are longer than the old labels; the dropdowns elide if tight (QML not run live).
+
+## Fix: piece search by tier name
+- Bug (live test): searching "bolsa del iniciado" found nothing. Gear names were stored without the tier adjective ("Bolsa") and the option description showed the internal id ("BAG").
+- Catalog: every entry now has `names` by tier (official ES-ES full name); `nameEs` is kept. Size 35,170 -> 99,258 bytes (362 entries; under the ~250 KB limit, no compact encoding needed).
+- Pure, tested helpers in `blackzone/Blackzone.js`: `pieceOptions(catalog, slot)` (one option per base and tier, `value: "<base>:<tier>"`, `label`: official name, `description: "T<tier>"`), `parsePieceOption`, `pieceName`. Max options per slot: mainhand 788 (armor/head/shoes 177, offhand 96, cape 77, mount 55, food 56, potion 43, bag 12); the popup list is virtualized.
+- View: picking an option sets `pieceBase` and `pieceTier`; the Nivel dropdown stays and only lists the base's tiers; the search field shows the option for the current base and tier. Set piece lines and death price lines use the official per-tier name. History shows set names only. Stored pieces (base + tier) are unchanged, no migration.
+- RED: 6 of 166 failing before the implementation (gear names, `pieceOptions`, `parsePieceOption`, `pieceName`). GREEN: `npm test` 166/166.
+- qmllint (`/tmp/qsl/qs` symlink): 0 errors, same warning categories as before (Unqualified access 122 -> 124 instances, same category).
+- NOT verified: QML never run live.
