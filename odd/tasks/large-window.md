@@ -29,7 +29,7 @@ Give the user a large floating window for data entry, besides the ~380px bar pan
 - The shell is not live here. `fcogarcia.albion-companion` is NOT installed on this dev PC, so do not install it or touch the live shell.
 
 ## Tasks
-- [ ] W1: Manifest kinds and `Window.qml` shell (wifiqr pattern): tabs, its own DataStore, open/close, Esc. Button in the bar panel. Route: delegated writer.
+- [x] W1: Manifest kinds and `Window.qml` shell (wifiqr pattern): tabs, its own DataStore, open/close, Esc. Button in the bar panel. Route: delegated writer.
 - [ ] W2: `wide` two-column layout for FarmView and BlackzoneView inside the window, with the bar panel unchanged. Route: same writer.
 - [ ] W3: README covering the window, the button, the optional Hyprland bind, and the need to run `omarchy restart shell` after updating if the window does not open. Route: same writer.
 
@@ -37,3 +37,15 @@ Give the user a large floating window for data entry, besides the ~380px bar pan
 `single-pr` on branch `feat/large-window`. RDD is off (global).
 
 ## Progress / evidence
+
+### W1 (writer) - ce3e786
+- Manifest: `kinds: ["bar-widget","panel"]`, `entryPoints.panel: "Window.qml"`. No `panel` block is needed: wifiqr has none (`/usr/share/omarchy/shell/plugins/panels/wifiqr/manifest.json`); the bar-widget block stays.
+- Loader: shell.qml:1296-1337 (one Loader per panel entry, active while `openPanelIds[id]`); injects `omarchyPath`, `shell`, `manifest` if declared (1340-1345). A mixed bar-widget+panel plugin is NOT treated as a bar-widget panel (shell.qml:1143-1148), so `toggle` goes to the panel loader. `toggle` = `isPluginOpen ? hide : summon` (shell.qml:1214-1224), reading `item.opened`.
+- `Window.qml`: root Item with `opened/open/close/dismiss`; `PanelWindow` Overlay + Exclusive focus (wifiqr Panel.qml:213-220); focus re-acquired with `Qt.callLater` after mapping (wifiqr Panel.qml:52-57); Esc through `PanelKeyCatcher` (blocked while a field is being edited, same as Panel.qml); scrim click closes; card min(1000x700, screen-32) centered; header Cultivos | Zona negra via `ButtonGroup`; Cerrar button; own `DataStore`; content in a `Flickable`.
+- Owner: `QtObject { store: dataStore; bar: QtObject { foreground: Color.popups.text; fontFamily: Style.font.family } }`. The views only read `owner.store`, `owner.bar.foreground`, `owner.bar.fontFamily` (rg over both views). Card colors: `Color.popups.background/border`. Views not duplicated; only a `wide` flag was added.
+- Button "Abrir ventana grande" in Panel.qml (visible on Cultivos / Zona negra tabs): closes the panel, then `root.bar.run(...)` (same call stock widgets use for `omarchy-shell shell toggle`: plugins/menu/BarWidget.qml:21; Ui/PluginBarApi.qml:84-86), with a `Process` fallback if `bar.run` is missing.
+- Concurrency (DataStore.qml / Storage.js): each store writes the whole document with atomic rename. The other store's FileView sees `fileChanged`; if it has `pendingWrites > 0` it defers (`reloadPending`, DataStore.qml `onFileChanged`) and reloads after `writeDone`; otherwise reloads at once. `reloadOutcome` (Storage.js:105-111) skips its own echo (`text === lastWritten`) and applies a foreign document. So a stale read never overwrites newer in-memory edits, and an edit in one surface reaches the other's memory within a file-watch round trip. Caveat (last write wins per document): edits committed in both surfaces inside that few-ms window would drop the earlier one. Unsaved text in a form is never in the document, so it is unaffected. The window store is recreated on every open (Loader unloads on hide), so it always starts from disk.
+- TDD: test-first. RED: manifest test failed (`[bar-widget]` vs `[bar-widget, panel]`). GREEN: `npm test` 185/185 (was 184).
+- qmllint (`-I ~/.cache/qsl`): 0 errors. Window.qml: missing-property + uncreatable-type (PanelWindow). Panel.qml: missing-property 6 -> 11, from the new `bar.run`/Style lines (same category). Views unchanged (129/39 and 166/43). No new categories.
+- Delegate-id check (/tmp/delegate_ids.py over Panel, Window, both views, binds): 0.
+- Smoke-load: scratch `qs -p` config in `~/.cache/qsl-smoke` (copies of Commons/Ui + plugin files, generated qmldirs); Window.qml and Panel.qml load Ready, views instantiate, tab switch works, no warnings. The window was not opened (no overlay on the live session).
