@@ -92,3 +92,9 @@ Albion has no API for island state, so the user cannot see what a rotation actua
 
 ## Final verification
 - `npm test`: 98/98. qmllint: no new error classes (see T3). QML never run live.
+
+### Parent check
+- Spot check: `npm test` 98/98 re-run by parent.
+- RDD off (global). `gentle-ai review assess --base-ref main --committed-only` (untracked `.atl/` excluded): risk medium (executable_change), 1429 changed lines. Writer self-verification accepted (non-small model); no independent verifier per tier table.
+- Branch exceeds the ~400-line budget; delivery stays `single-pr` as recorded.
+- Next step: user live test in the shell (needs push/merge, since `omarchy plugin update` pulls from GitHub).
