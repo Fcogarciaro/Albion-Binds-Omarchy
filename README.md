@@ -153,9 +153,24 @@ Cada parcela puede tener **un solo ciclo abierto** a la vez. Si se perdió la co
 
 Si te equivocas, puedes borrar: **Cancelar siembra** (ciclo abierto), **Eliminar** en una fila del historial, o **Eliminar parcela** (borra también sus ciclos). Pide confirmación: el primer toque cambia el botón a **¿Seguro?** y el segundo borra.
 
+### Escribir cantidades de plata rápido
+
+En todos los campos de plata (precio de semilla o cultivo, valor perdido, botín y gasto) puedes usar abreviaturas:
+
+| Escribes | Se guarda |
+| --- | --- |
+| `450k` | 450,000 |
+| `1.2m` o `1,2m` | 1,200,000 |
+| `12,5k` | 12,500 |
+| `1.500.000` o `1,500,000` | 1,500,000 |
+
+`k` es mil y `m` es millón (mayúsculas o minúsculas). Un punto o coma seguido de exactamente tres dígitos son miles (`1.500` = 1,500). Un decimal solo se acepta con `k` o `m`: `1.5` sin letra es ambiguo y se rechaza con un aviso. Cantidades, semillas y tomos siguen siendo números enteros.
+
 ### Registrar un gasto
 
 Si pagas para llegar a zona negra (por ejemplo el portal SAFE), abre **REGISTRAR GASTO**, escribe lo que costó y una nota (si la dejas vacía se guarda como «Portal»). Los gastos se restan de la ganancia y aparecen como **Gastado** en el resumen y como filas «Gasto» en el historial.
+
+Si repites el mismo gasto, usa **Repetir: Portal SAFE −12k** (arriba del formulario): un toque anota otro gasto con el mismo valor y nota, con la hora de ahora. El botón no aparece si todavía no hay ningún gasto. El formulario recuerda la última nota.
 
 ### Cómo se calcula la ganancia
 
@@ -213,6 +228,8 @@ La lista de piezas sale de los datos del juego (`ao-bin-dumps`) y viene guardada
 
 ### Registrar una muerte
 
+Atajo: presiona **Morí con este set** en la fila del set. Abre el formulario con ese set elegido y consulta los precios al instante.
+
 1. Abre **REGISTRAR MUERTE**, elige el **set** que llevabas y la **ciudad** de referencia.
 2. Presiona **Consultar precios**: trae de una sola vez el precio de todas las piezas. Cada pieza muestra su precio (× la cantidad), o **sin precio** si nadie lo reportó.
 3. El **valor perdido** se rellena con la suma. Puedes **corregirlo a mano** (por ejemplo si faltaban precios o si no recuperaste todo).
@@ -225,6 +242,12 @@ Una muerte guarda una **foto de los precios** del momento: si el mercado cambia 
 Abre **REGISTRAR BOTÍN**, escribe la plata que sacaste (lo que vale lo que vendiste o lo que te dio el cofre) y, si quieres, una nota. Presiona **Guardar botín**.
 
 En el mismo formulario puedes contar los **Tomos de conocimiento** que te cayeron, por nivel (T1 a T8). Solo se cuentan: no tienen valor en plata y no entran en la ganancia. El resumen muestra el total de cada nivel y el historial los anota en cada botín; puedes guardar un botín solo con tomos y sin plata.
+
+### Cosas que recuerda el plugin
+
+Para escribir menos, el plugin recuerda tu **ciudad** (la misma para Cultivos, el planificador y las muertes), el **último set** de muerte y la **última nota de gasto**. Se guardan en `data.json` (sección `ui`), así que viajan contigo si sincronizas entre PCs.
+
+En los formularios, **Enter guarda** (en los de varios campos de Cultivos, Enter pasa al siguiente y guarda en el último). Al abrir una sección, el cursor ya está en su primer campo.
 
 ### Cómo se calcula la ganancia
 
