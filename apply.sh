@@ -13,6 +13,14 @@ changed=0
 if ! printf '%s' "$content" | cmp -s - "$target" 2>/dev/null; then
   tmp="$(mktemp "$target.XXXXXX")"
   printf '%s' "$content" >"$tmp"
+  # Refuse to install a file Lua cannot compile (when luac is available).
+  if command -v luac >/dev/null 2>&1; then
+    if ! lua_errors="$(luac -p "$tmp" 2>&1)"; then
+      rm -f "$tmp"
+      echo "$lua_errors" >&2
+      exit 1
+    fi
+  fi
   mv "$tmp" "$target"
   changed=1
 fi
