@@ -4,6 +4,7 @@ import qs.Commons
 import qs.Ui
 import "Farm.js" as Farm
 import "Prices.js" as Prices
+import "Planner.js" as Planner
 
 // "Cultivos" tab: plots, plant/harvest forms, cycle history and totals.
 // Data lives in owner.store (DataStore); every change is saved right away.
@@ -30,10 +31,17 @@ Column {
   property string priceTarget: ""
   // Delete control awaiting its second tap ("plot:<id>", "open:<id>", "hist:<id>").
   property string confirmKey: ""
+  // Rotation planner: collapsible, prices fetched on demand for plannerCity.
+  property bool plannerOpen: false
+  property string plannerCity: "Lymhurst"
+  property var plannerPrices: ({})
+  property string plannerStatus: ""
+  readonly property var plannerRows: Planner.rankCrops(farm, plannerPrices, Farm.CROPS)
   readonly property var activeCycle: activePlotId !== "" ? Farm.openCycle(farm, activePlotId) : null
   readonly property bool editing: plotNameField.activeFocus || seedsField.activeFocus || seedPriceField.activeFocus
     || harvestedField.activeFocus || returnedField.activeFocus || cropPriceField.activeFocus
-    || taxField.activeFocus || cropDropdown.popupOpen || cityDropdown.popupOpen
+    || taxField.activeFocus || seedsPlotField.activeFocus || cropDropdown.popupOpen || cityDropdown.popupOpen
+    || plannerCityDropdown.popupOpen
 
   readonly property var cropOptions: Farm.CROPS.map(function(c) {
     return { value: c.key, label: "T" + c.tier + " " + c.name }
@@ -185,9 +193,60 @@ Column {
     priceText = "Precio en " + city + ": " + Farm.formatSilver(price) + " (puede estar desactualizado)."
   }
 
-  // Keeps the field in sync when the data file finishes loading.
+  function togglePlanner() {
+    plannerOpen = !plannerOpen
+    if (plannerOpen && plannerStatus === "") fetchPlannerPrices()
+  }
+
+  function plannerIds() {
+    var ids = []
+    for (var i = 0; i < Farm.CROPS.length; i++) ids.push(Farm.CROPS[i].cropId, Farm.CROPS[i].seedId)
+    return ids
+  }
+
+  // One request for every crop and seed; failures only set a message.
+  function fetchPlannerPrices() {
+    if (plannerProc.running) return
+    plannerStatus = "Consultando el mercado…"
+    plannerProc.city = plannerCity
+    plannerProc.command = ["curl", "-fsS", "--max-time", "10", Prices.buildUrl(plannerIds(), plannerCity)]
+    plannerProc.running = true
+  }
+
+  function applyPlannerPrices(text) {
+    var result = Prices.parsePrices(text, plannerProc.city, plannerIds())
+    if (!result.ok) { plannerStatus = "No pude consultar el mercado. Intenta de nuevo."; return }
+    plannerPrices = result.prices
+    plannerStatus = "Precios de " + plannerProc.city + " (pueden estar desactualizados)."
+  }
+
+  function setPlannerCity(value) {
+    plannerCity = value
+    plannerPrices = ({})
+    fetchPlannerPrices()
+  }
+
+  function savePlannerSetting(patch) { commit(Farm.setPlannerSettings(farm, patch)) }
+
+  function saveSeedsPerPlot() {
+    var n = Farm.parseInteger(seedsPlotField.text)
+    if (n === null) { errorText = "Las semillas por parcela deben ser un número entero."; return }
+    if (commit(Farm.setPlannerSettings(farm, { seedsPerPlot: n }))) seedsPlotField.text = String(n)
+  }
+
+  function plannerDetail(row) {
+    var label = row.source + " · " + (Math.round(row.cropsPerSeed * 100) / 100) + " cultivos/semilla"
+    return row.partial ? label + " · sin precio de semilla (parcial)" : label
+  }
+
+  // Keeps the fields in sync when the data file finishes loading.
   onTaxRateChanged: if (!taxField.activeFocus) taxField.text = Farm.formatPercent(taxRate)
-  Component.onCompleted: taxField.text = Farm.formatPercent(taxRate)
+  readonly property int seedsPerPlot: farm.settings.seedsPerPlot
+  onSeedsPerPlotChanged: if (!seedsPlotField.activeFocus) seedsPlotField.text = String(seedsPerPlot)
+  Component.onCompleted: {
+    taxField.text = Farm.formatPercent(taxRate)
+    seedsPlotField.text = String(seedsPerPlot)
+  }
 
   // An armed delete control disarms itself if the second tap never comes.
   Timer {
@@ -202,6 +261,15 @@ Column {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: view.applyPrice(text)
+    }
+  }
+
+  Process {
+    id: plannerProc
+    property string city: ""
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: view.applyPlannerPrices(text)
     }
   }
 
@@ -368,6 +436,226 @@ Column {
         fontSize: Style.font.bodySmall
         bordered: true
         onClicked: view.addPlot()
+      }
+    }
+  }
+
+  // ---------- Rotation planner ----------
+  Column {
+    width: parent.width
+    spacing: Style.space(8)
+
+    PanelSeparator { foreground: owner.bar.foreground }
+
+    Item {
+      width: parent.width
+      implicitHeight: Math.max(plannerHeader.implicitHeight, plannerToggle.implicitHeight)
+
+      PanelSectionHeader {
+        id: plannerHeader
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        text: "PLANIFICADOR"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
+
+      Button {
+        id: plannerToggle
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        text: view.plannerOpen ? "Ocultar" : "Mostrar"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.caption
+        bordered: true
+        onClicked: view.togglePlanner()
+      }
+    }
+
+    Column {
+      visible: view.plannerOpen
+      width: parent.width
+      spacing: Style.space(8)
+
+      Row {
+        width: parent.width
+        spacing: Style.space(6)
+
+        Dropdown {
+          id: plannerCityDropdown
+          width: parent.width - plannerRefresh.width - parent.spacing
+          label: "Ciudad"
+          value: view.plannerCity
+          options: Prices.CITIES
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          onChanged: function(v) { view.setPlannerCity(v) }
+        }
+
+        Button {
+          id: plannerRefresh
+          text: "Actualizar"
+          anchors.verticalCenter: plannerCityDropdown.verticalCenter
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          fontSize: Style.font.bodySmall
+          bordered: true
+          onClicked: view.fetchPlannerPrices()
+        }
+      }
+
+      Item {
+        width: parent.width
+        implicitHeight: Math.max(premiumLabel.implicitHeight, premiumSwitch.implicitHeight)
+
+        Text {
+          id: premiumLabel
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          text: "Premium"
+          color: owner.bar.foreground
+          font.family: owner.bar.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+
+        ToggleSwitch {
+          id: premiumSwitch
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          checked: view.farm.settings.premium
+          foreground: owner.bar.foreground
+          onToggled: view.savePlannerSetting({ premium: !view.farm.settings.premium })
+        }
+      }
+
+      Item {
+        width: parent.width
+        implicitHeight: Math.max(focusLabel.implicitHeight, focusSwitch.implicitHeight)
+
+        Text {
+          id: focusLabel
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          text: "Riego con foco"
+          color: owner.bar.foreground
+          font.family: owner.bar.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+
+        ToggleSwitch {
+          id: focusSwitch
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          checked: view.farm.settings.focus
+          foreground: owner.bar.foreground
+          onToggled: view.savePlannerSetting({ focus: !view.farm.settings.focus })
+        }
+      }
+
+      Row {
+        width: parent.width
+        spacing: Style.space(6)
+
+        TextField {
+          id: seedsPlotField
+          width: parent.width - seedsPlotButton.width - parent.spacing
+          placeholderText: "Semillas por parcela"
+          font.family: owner.bar.fontFamily
+          font.pixelSize: Style.font.body
+          foreground: owner.bar.foreground
+          onAccepted: view.saveSeedsPerPlot()
+          Keys.onEscapePressed: view.catcher.forceActiveFocus()
+        }
+
+        Button {
+          id: seedsPlotButton
+          text: "Guardar"
+          anchors.verticalCenter: seedsPlotField.verticalCenter
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          fontSize: Style.font.bodySmall
+          bordered: true
+          onClicked: view.saveSeedsPerPlot()
+        }
+      }
+
+      Text {
+        visible: view.plannerStatus !== ""
+        width: parent.width
+        textFormat: Text.PlainText
+        text: view.plannerStatus
+        color: owner.bar.foreground
+        opacity: 0.7
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+
+      Repeater {
+        model: view.plannerRows
+
+        Item {
+          id: plannerRow
+          required property var modelData
+          required property int index
+          width: parent.width
+          implicitHeight: Math.max(plannerLabels.implicitHeight, plannerProfit.implicitHeight)
+
+          Column {
+            id: plannerLabels
+            anchors.left: parent.left
+            anchors.right: plannerProfit.left
+            anchors.rightMargin: Style.space(8)
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(2)
+
+            Text {
+              textFormat: Text.PlainText
+              text: (plannerRow.index + 1) + ". T" + plannerRow.modelData.tier + " " + plannerRow.modelData.name
+              color: owner.bar.foreground
+              font.family: owner.bar.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              font.bold: plannerRow.index === 0 && plannerRow.modelData.profit !== null
+              elide: Text.ElideRight
+              width: parent.width
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              text: view.plannerDetail(plannerRow.modelData)
+              color: owner.bar.foreground
+              opacity: 0.6
+              font.family: owner.bar.fontFamily
+              font.pixelSize: Style.font.caption
+              elide: Text.ElideRight
+              width: parent.width
+            }
+          }
+
+          Text {
+            id: plannerProfit
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: plannerRow.modelData.profit === null ? "sin precio" : view.signed(plannerRow.modelData.profit)
+            color: plannerRow.modelData.profit !== null && plannerRow.modelData.profit < 0 ? Color.urgent : owner.bar.foreground
+            opacity: plannerRow.modelData.profit === null ? 0.6 : 1
+            font.family: owner.bar.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            font.bold: plannerRow.modelData.profit !== null
+          }
+        }
+      }
+
+      Text {
+        width: parent.width
+        text: "Ganancia esperada por parcela y ciclo. Estimado = datos del juego, aproximado."
+        color: owner.bar.foreground
+        opacity: 0.6
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
       }
     }
   }
