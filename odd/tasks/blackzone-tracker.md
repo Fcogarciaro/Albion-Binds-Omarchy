@@ -47,8 +47,8 @@ The user wants to know whether black zone runs pay off. Albion exposes neither d
   - Totals.
   - Storage wiring.
   - Route: same writer.
-- [ ] T3: `blackzone/BlackzoneView.qml`: sets editor, death and loot logging with price fetch, summary and history, deletes. Route: same writer.
-- [ ] T4: README "Zona negra" section. Route: same writer.
+- [x] T3: `blackzone/BlackzoneView.qml`: sets editor, death and loot logging with price fetch, summary and history, deletes. Route: same writer.
+- [x] T4: README "Zona negra" section. Route: same writer.
 
 ## Acceptance criteria
 - `npm test` green.
@@ -73,3 +73,12 @@ The user wants to know whether black zone runs pay off. Albion exposes neither d
 - Removed set decision: deleting a set keeps its death events; every death stores `setName` (snapshot), so history, totals and per-set losses still show the old name. Renaming a set does not rewrite past deaths.
 - `Prices.buildUrl(ids, city, server, qualities)` (optional list, default `[1]`) and `Prices.parseQualityPrices` (keys `itemId:quality`) added; farm callers unchanged.
 - `Storage.parseData/reloadOutcome` take an injected `sanitizeBlackzone`; `DataStore.qml` passes `Blackzone.sanitizeBlackzone`.
+
+### T3 (writer) - 7bda576
+- `blackzone/BlackzoneView.qml` replaces the placeholder; `Panel.qml` wires `id`, `catcher` and `editing` (`blackzoneView.editing`) like FarmView.
+- UI (Spanish): summary (balance, ganado, perdido, muertes, botín medio); SETS (create, Editar: rename, pieces list with Quitar, add piece = Ranura dropdown -> SearchableDropdown of catalog entries filtered by slot (virtualized popup list) -> Tier (only the base's tiers) / Encant. .0-.4 / Calidad (hidden for potion/food, which show a Cantidad field), two-tap Eliminar set); REGISTRAR MUERTE (set, ciudad, one curl request for all pieces with qualities, per-piece price or "sin precio", editable total, Guardar); REGISTRAR BOTÍN (value + note); HISTORIAL (two-tap Eliminar). Sets/death/loot/history sections collapse. All saves go through `commit(result)`.
+- qmllint (symlink dir `/tmp/qsl/qs -> /usr/share/omarchy/shell`, `-I /tmp/qsl`): 0 errors; only the baseline categories (Unqualified access, `Style.font.*` not found on QObject, Info notes). Panel.qml: 0 errors.
+- NOT verified: QML never run live (layout at 380px, SearchableDropdown inside the Column, dropdown option reactivity when the slot changes, Process fetch).
+
+### T4 (writer) - dbc1ed0
+- README: tab bullet no longer "próximamente"; new "⚔️ Zona negra" section (create set, log death, log loot, profit formula, crowd-sourced snapshot prices, deletes); "Cómo funciona" line updated; Desarrollo documents `npm run build:catalog`.
