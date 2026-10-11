@@ -47,7 +47,7 @@ Albion has no API for island state, so the user cannot see what a rotation actua
   - `cycleProfit`, plus totals per plot, per crop and overall.
   - Route: delegated writer.
 - [x] T2: `farm/Prices.js`, pure and test-first: build the API URL and parse the response into `{ itemId: price | null }`. The QML fetch uses `XMLHttpRequest` only if a stock shell plugin proves it works there. Otherwise prices stay manual and the evidence is recorded. Route: same writer.
-- [ ] T3: `farm/FarmView.qml`. Contents:
+- [x] T3: `farm/FarmView.qml`. Contents:
   - Plots list with the open cycle state.
   - Add plot.
   - Plant form (crop, seeds, seed price) and harvest form (crops, seeds returned, crop price) with price prefill.
@@ -78,3 +78,11 @@ Albion has no API for island state, so the user cannot see what a rotation actua
 - RED: tests/prices.test.mjs failed to load (module missing); GREEN: `npm test` 96/96 (87 before; 9 new).
 - farm/Prices.js: `buildUrl(ids, city, server)` (unknown server falls back to west, unsafe ids dropped, city URI-encoded), `parsePrices(json, city, wantedIds?)` -> `{ok, prices}` / `{ok:false, error}` (0, negative or non-numeric -> null; lowest non-zero price when a city repeats an item), `CITIES`, `SERVERS`.
 - Fetch mechanism: XMLHttpRequest is NOT proven in stock plugins (`rg "XMLHttpRequest|fetch\("` over /usr/share/omarchy/shell: no hits; the only hits are third-party mirador test files under ~/.config/omarchy/plugins, which is not proof). Stock pattern used instead: `Process { command: ["curl","-fsS","--max-time",N,url]; stdout: StdioCollector { waitForEnd: true; onStreamFinished } }` at /usr/share/omarchy/shell/plugins/panels/weather/Panel.qml:186,277,335,419-429. T3 uses it.
+
+### T3 (writer) - 895ec5c
+- Farm.js gained `openCycle(farm, plotId)` and `closedCycles(farm, limit)` (+2 tests, `npm test` 98/98; written together with the code, so no separate RED was observed for these two).
+- farm/FarmView.qml replaces the placeholder: summary (total profit), plots list (open-cycle state, per-plot total, Plantar/Cosechar button), add plot, shared plant/harvest form (crop dropdown, integer fields, live estimated profit on harvest, city dropdown + "Precio de mercado" prefill), last 8 closed cycles with profit, editable sales tax (%). Every change goes through `commit(result)`: replaces `store.document` and calls `saveData()`; errors are shown in Spanish.
+- Panel.qml: exposes `readonly property var store: dataStore`; FarmView gets `id: farmView` and `catcher`; `editing` also covers the farm tab so the key catcher is blocked while typing.
+- Price prefill uses the stock Process+curl+StdioCollector pattern (weather Panel.qml:186,419-429). `curl --max-time 8`; any failure/empty/zero only sets a status message, fields stay editable.
+- qmllint: plain run only shows unresolved `qs.*` imports (baseline, same for BindsView). With a symlink dir exposing the shell as module `qs` (`-I <dir containing qs -> /usr/share/omarchy/shell>`) the imports resolve; FarmView.qml and Panel.qml then show only the baseline categories (Unqualified access of `owner`/ids inside delegates, `Style.font.*` "not found on QObject") identical to BindsView.qml, plus the baseline QProcess::ExitStatus warning in Panel.qml. No new error classes.
+- NOT verified: QML never run in the live shell (layout at 380px, Dropdown inside Row, focus handling).
