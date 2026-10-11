@@ -102,4 +102,13 @@ Albion has no API for island state, so the user cannot see what a rotation actua
 ## Follow-up: delete (requested 2026-10-11 after live test)
 User live-tested the tab (plots, plant, prefill, persistence OK; harvest not yet tested). Missing: no way to fix a wrong entry.
 - Decisions: delete a cycle (open = cancel planting, closed = drop from history and totals); delete a plot removes its cycles too. Both need a two-tap confirm in the view ("Eliminar" -> "¿Seguro?"), no modal dialogs.
-- [ ] T5: `Farm.removeCycle(farm, cycleId)` and `Farm.removePlot(farm, plotId)`, pure, immutable and test-first. Delete controls in `FarmView.qml` for the open cycle, history rows and plots. Branch `feat/farm-delete`. Route: delegated writer (2 non-trivial files).
+- [x] T5: `Farm.removeCycle(farm, cycleId)` and `Farm.removePlot(farm, plotId)`, pure, immutable and test-first. Delete controls in `FarmView.qml` for the open cycle, history rows and plots. Branch `feat/farm-delete`. Route: delegated writer (2 non-trivial files).
+
+### T5 (writer) - 818ac9b
+- RED: 5 new tests (removeCycle x3, removePlot x2) failed with `Farm.removeX is not a function`: 98 pass / 5 fail of 103. GREEN: `npm test` 103/103.
+- `Farm.removeCycle(farm, cycleId)` and `Farm.removePlot(farm, plotId)` (also drops that plot's cycles), pure and immutable, `{ok, farm}` / `{ok:false, error}` with Spanish errors ("No encontré ese ciclo." / "No encontré esa parcela.").
+- FarmView.qml: `confirmKey` state + `askDelete(key, action)` two-tap helper with a 4 s `Timer` reset. Controls: "Cancelar siembra" (open cycle) and "Eliminar parcela" in the plot row, "Eliminar" per history row; first tap shows "¿Seguro?", second tap on the same control deletes. Tapping any other delete control re-arms that one instead; openForm/closeForm and the timeout disarm. Everything goes through `commit(result)`; the form closes if its plot or open cycle is deleted. No modal dialogs. (BindsView deletes with a single-tap trash PanelActionButton, so there was no confirm idiom to reuse; text Buttons used for the "¿Seguro?" label.)
+- README "Cultivos": one paragraph on deleting.
+- qmllint (symlink dir exposing the shell as module `qs`): same warning categories as the pre-change baseline (Unqualified access in delegates, `Style.font.*` not found on QObject); counts rose only for the same categories (new delegate code). No new category.
+- NOT verified: QML never run live (button layout at 380px in the plot row and history row, timer behavior, form close on delete).
+
