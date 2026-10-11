@@ -44,7 +44,7 @@ The exact split may be adjusted to what QML imports allow. Relative `import "bin
 - [x] T2: Rename the id, the Lua module and the marker. Add legacy cleanup to `apply.sh`, test-first. Route: same writer.
 - [x] T3: Backup: new app id and path, accept legacy `albion-binds` files, fall back to `~/albion-binds.json` (test-first for the pure parts). Route: same writer.
 - [x] T4: `shared/Storage.js` skeleton (default doc, version, validate), test-first, plus a FileView-backed load/save in QML. Route: same writer.
-- [ ] T5: Tabbed bar panel (Atajos, Cultivos, Zona negra) and `BindsView.qml` extraction. Research the `panel` kind and either add the window skeleton or document why it is deferred. Route: same writer.
+- [x] T5: Tabbed bar panel (Atajos, Cultivos, Zona negra) and `BindsView.qml` extraction. Research the `panel` kind and either add the window skeleton or document why it is deferred. Route: same writer.
 - [ ] T6: README: new name, fresh install, migration from Albion Binds, uninstall. Route: same writer.
 
 ## Acceptance criteria
@@ -72,7 +72,13 @@ The exact split may be adjusted to what QML imports allow. Relative `import "bin
 - RED: export app name + legacy accept tests failing (3 fails). GREEN: 53/53.
 - Backup.js: EXPORT_APP albion-companion, LEGACY_APPS [albion-binds]. Panel.qml: export to ~/albion-companion.json; import reads it and on loadFailed reloads a second FileView on ~/albion-binds.json; messages name the file used. Not executable here (QML).
 
-### T4 (same writer)
+### T4 (same writer) - 872bdcf
 - RED: tests/storage.test.mjs failed (module missing). GREEN: 63/63.
 - shared/Storage.js (DATA_VERSION, defaultData, parseData, serializeData); shared/DataStore.qml: FileView load on start (missing file keeps defaults, nothing is created), `saveData()` runs `mkdir -p` first (FileView directory creation is not documented; stock pattern plugins/notifications/Service.qml:414) then setText. Panel.qml instantiates `DataStore { id: dataStore }` via `import "shared"`.
+
+### T5 (same writer)
+- Panel.qml is now the shell (icon, state, apply/backup logic, tabs); binds/BindsView.qml holds the hero, list, add form and backup UI; farm/FarmView.qml and blackzone/BlackzoneView.qml are "Próximamente" placeholders. Tabs use the shell's Ui/ButtonGroup (Ui/qmldir, ButtonGroup.qml: options [{value,label}], value, changed(value)); selected tab is in memory only.
+- Verified: subdirectory components via `import "components"` (plugins/notifications/Service.qml:11).
+- Not unit-testable (QML only); `npm test` stays 63/63. QML was not executed.
+- `panel` window: DEFERRED to phase 2. Evidence: `rg` for manifests listing both "bar-widget" and "panel" kinds over /usr/share/omarchy/shell/plugins and ~/.config/omarchy/plugins finds none; `panel` plugins (e.g. plugins/panels/wifiqr/manifest.json: kinds ["panel"], entryPoints.panel) are standalone summoned overlays; Ui/PluginBarApi.qml exposes only switchPanelFrom (line 72), no way for a bar widget to open its own plugin's panel.
 

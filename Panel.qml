@@ -6,6 +6,9 @@ import qs.Ui
 import "binds/Binds.js" as Binds
 import "backup/Backup.js" as Backup
 import "shared"
+import "binds"
+import "farm"
+import "blackzone"
 
 Panel {
   id: root
@@ -27,7 +30,8 @@ Panel {
   property string backupText: ""
   property bool backupFailed: false
   property string backupAction: ""
-  readonly property bool editing: customTriggerField.activeFocus || comboField.activeFocus || dropdown.popupOpen
+  property string currentTab: "binds"
+  readonly property bool editing: currentTab === "binds" && bindsView.editing
 
   function save(changes) {
     root.settings = Object.assign({}, root.settings, changes)
@@ -47,22 +51,6 @@ Panel {
     applyProc.command = ["bash", script, pendingLua]
     pendingLua = ""
     applyProc.running = true
-  }
-
-  function addBind() {
-    var trigger = Binds.normalizeTrigger(newTrigger === "custom" ? customTriggerField.text : newTrigger)
-    var combo = Binds.parseCombo(comboField.text)
-    if (!trigger) { errorText = "Botón o tecla no válido (ej. mouse:275, F5)."; return }
-    if (!combo) { errorText = "Atajo no válido (ej. SHIFT+N, CTRL+ALT+1)."; return }
-    if (binds.some(function(b) { return b.trigger === trigger })) {
-      errorText = Binds.triggerLabel(trigger) + " ya tiene un atajo."
-      return
-    }
-
-    errorText = ""
-    comboField.text = ""
-    customTriggerField.text = ""
-    save({ binds: binds.concat([{ trigger: trigger, combo: combo.text, enabled: true }]) })
   }
 
   function removeBind(index) {
@@ -204,283 +192,40 @@ Panel {
         anchors.top: parent.top
         spacing: Style.space(14)
 
-        // ---------- Hero ----------
-        Item {
-          width: parent.width
-          implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight, masterSwitch.implicitHeight)
-
-          Text {
-            id: heroIcon
-            textFormat: Text.PlainText
-            text: root.swordIcon
-            color: root.bar.foreground
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.display
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-          }
-
-          Column {
-            id: heroLabels
-            anchors.left: heroIcon.right
-            anchors.leftMargin: Style.space(14)
-            anchors.right: masterSwitch.left
-            anchors.rightMargin: Style.space(10)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(2)
-
-            Text {
-              text: "Albion Companion"
-              color: root.bar.foreground
-              font.family: root.bar.fontFamily
-              font.pixelSize: Style.font.title
-              font.bold: true
-              elide: Text.ElideRight
-              width: parent.width
-            }
-
-            Text {
-              textFormat: Text.PlainText
-              text: (root.masterEnabled ? "Activo · solo en Albion" : "En pausa").toUpperCase()
-              color: Qt.darker(root.bar.foreground, 1.4)
-              font.family: root.bar.fontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: true
-              font.letterSpacing: 1.2
-              elide: Text.ElideRight
-              width: parent.width
-            }
-          }
-
-          ToggleSwitch {
-            id: masterSwitch
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            checked: root.masterEnabled
-            foreground: root.bar.foreground
-            onToggled: root.save({ enabled: !root.masterEnabled })
-          }
+        // The selected tab lives in memory only.
+        ButtonGroup {
+          id: tabs
+          options: [
+            { value: "binds", label: "Atajos" },
+            { value: "farm", label: "Cultivos" },
+            { value: "blackzone", label: "Zona negra" }
+          ]
+          value: root.currentTab
+          focusable: false
+          foreground: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+          fontSize: Style.font.bodySmall
+          onChanged: function(v) { root.currentTab = v }
         }
 
-        PanelSeparator { foreground: root.bar.foreground }
-
-        // ---------- Current binds ----------
-        Column {
+        BindsView {
+          id: bindsView
           width: parent.width
-          spacing: Style.space(8)
-
-          PanelSectionHeader {
-            text: "ATAJOS"
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-          }
-
-          Text {
-            visible: root.binds.length === 0
-            text: "Sin atajos. Agrega uno abajo."
-            color: root.bar.foreground
-            opacity: 0.6
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.bodySmall
-          }
-
-          Repeater {
-            model: root.binds
-
-            Item {
-              id: bindRow
-              required property var modelData
-              required property int index
-              width: parent.width
-              implicitHeight: Math.max(bindLabels.implicitHeight, bindSwitch.implicitHeight, removeButton.implicitHeight)
-              opacity: modelData.enabled && root.masterEnabled ? 1 : 0.5
-
-              Column {
-                id: bindLabels
-                anchors.left: parent.left
-                anchors.right: bindSwitch.left
-                anchors.rightMargin: Style.space(8)
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Style.space(2)
-
-                Text {
-                  textFormat: Text.PlainText
-                  text: Binds.triggerLabel(bindRow.modelData.trigger) + "  →  " + bindRow.modelData.combo
-                  color: root.bar.foreground
-                  font.family: root.bar.fontFamily
-                  font.pixelSize: Style.font.body
-                  font.bold: true
-                  elide: Text.ElideRight
-                  width: parent.width
-                }
-
-                Text {
-                  textFormat: Text.PlainText
-                  text: bindRow.modelData.trigger
-                  color: root.bar.foreground
-                  opacity: 0.6
-                  font.family: root.bar.fontFamily
-                  font.pixelSize: Style.font.caption
-                  elide: Text.ElideRight
-                  width: parent.width
-                }
-              }
-
-              ToggleSwitch {
-                id: bindSwitch
-                anchors.right: removeButton.left
-                anchors.rightMargin: Style.space(6)
-                anchors.verticalCenter: parent.verticalCenter
-                checked: bindRow.modelData.enabled
-                foreground: root.bar.foreground
-                onToggled: root.toggleBind(bindRow.index)
-              }
-
-              PanelActionButton {
-                id: removeButton
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                iconText: root.trashIcon
-                tooltipText: "Quitar atajo"
-                foreground: root.bar.foreground
-                fontFamily: root.bar.fontFamily
-                onClicked: root.removeBind(bindRow.index)
-              }
-            }
-          }
+          visible: root.currentTab === "binds"
+          owner: root
+          catcher: keyCatcher
         }
 
-        PanelSeparator { foreground: root.bar.foreground }
-
-        // ---------- Add bind ----------
-        Column {
+        FarmView {
           width: parent.width
-          spacing: Style.space(8)
-
-          PanelSectionHeader {
-            text: "AGREGAR ATAJO"
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-          }
-
-          Dropdown {
-            id: dropdown
-            width: parent.width
-            label: "Botón"
-            value: root.newTrigger
-            options: Binds.TRIGGER_PRESETS
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-            onChanged: function(v) { root.newTrigger = v; root.errorText = "" }
-          }
-
-          TextField {
-            id: customTriggerField
-            visible: root.newTrigger === "custom"
-            width: parent.width
-            placeholderText: "Tecla o botón de Hyprland (ej. F5, mouse:277)"
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.body
-            foreground: root.bar.foreground
-            onAccepted: comboField.forceActiveFocus()
-            Keys.onEscapePressed: keyCatcher.forceActiveFocus()
-          }
-
-          Row {
-            width: parent.width
-            spacing: Style.space(6)
-
-            TextField {
-              id: comboField
-              width: parent.width - addButton.width - parent.spacing
-              placeholderText: "Atajo en Albion (ej. SHIFT+N)"
-              font.family: root.bar.fontFamily
-              font.pixelSize: Style.font.body
-              foreground: root.bar.foreground
-              onAccepted: root.addBind()
-              Keys.onEscapePressed: keyCatcher.forceActiveFocus()
-            }
-
-            Button {
-              id: addButton
-              text: "Agregar"
-              anchors.verticalCenter: comboField.verticalCenter
-              foreground: root.bar.foreground
-              fontFamily: root.bar.fontFamily
-              fontSize: Style.font.bodySmall
-              bordered: true
-              onClicked: root.addBind()
-            }
-          }
-
-          Text {
-            visible: root.errorText !== ""
-            width: parent.width
-            text: root.errorText
-            color: Color.urgent
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.WordWrap
-          }
+          visible: root.currentTab === "farm"
+          owner: root
         }
 
-        PanelSeparator { foreground: root.bar.foreground }
-
-        // ---------- Backup ----------
-        Column {
+        BlackzoneView {
           width: parent.width
-          spacing: Style.space(8)
-
-          PanelSectionHeader {
-            text: "RESPALDO"
-            foreground: root.bar.foreground
-            fontFamily: root.bar.fontFamily
-          }
-
-          Text {
-            width: parent.width
-            textFormat: Text.PlainText
-            text: "~/albion-companion.json"
-            color: root.bar.foreground
-            opacity: 0.6
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.caption
-            elide: Text.ElideRight
-          }
-
-          Row {
-            spacing: Style.space(6)
-
-            Button {
-              text: "Exportar"
-              foreground: root.bar.foreground
-              fontFamily: root.bar.fontFamily
-              fontSize: Style.font.bodySmall
-              bordered: true
-              onClicked: root.exportBackup()
-            }
-
-            Button {
-              text: "Importar"
-              foreground: root.bar.foreground
-              fontFamily: root.bar.fontFamily
-              fontSize: Style.font.bodySmall
-              bordered: true
-              onClicked: root.importBackup()
-            }
-          }
-
-          Text {
-            visible: root.backupText !== ""
-            width: parent.width
-            textFormat: Text.PlainText
-            text: root.backupText
-            color: root.backupFailed ? Color.urgent : root.bar.foreground
-            opacity: root.backupFailed ? 1 : 0.7
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.WordWrap
-          }
+          visible: root.currentTab === "blackzone"
+          owner: root
         }
       }
     }
