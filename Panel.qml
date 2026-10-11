@@ -32,6 +32,7 @@ Panel {
   property string backupAction: ""
   property string currentTab: "binds"
   readonly property bool editing: (currentTab === "binds" && bindsView.editing) || (currentTab === "farm" && farmView.editing)
+    || (currentTab === "blackzone" && blackzoneView.editing)
 
   function save(changes) {
     root.settings = Object.assign({}, root.settings, changes)
@@ -226,9 +227,11 @@ Panel {
         }
 
         BlackzoneView {
+          id: blackzoneView
           width: parent.width
           visible: root.currentTab === "blackzone"
           owner: root
+          catcher: keyCatcher
         }
       }
     }
