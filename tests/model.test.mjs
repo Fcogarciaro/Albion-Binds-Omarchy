@@ -103,3 +103,76 @@ test("generateLua: enabled bind becomes a row", () => {
 test("generateLua: keeps the Albion class constant", () => {
   assert.match(Model.generateLua([], true), /local ALBION_CLASS = "Albion-Online"/)
 })
+
+test("exportBinds: writes app, version, enabled and sanitized binds, pretty-printed", () => {
+  const text = Model.exportBinds([{ trigger: "mouse:275", combo: "shift + n", enabled: true }], false)
+  assert.ok(text.endsWith("}\n"))
+  assert.deepEqual(JSON.parse(text), {
+    app: "albion-binds",
+    version: 1,
+    enabled: false,
+    binds: [{ trigger: "mouse:275", combo: "SHIFT+N", enabled: true }]
+  })
+  assert.ok(text.includes("\n  \"app\""))
+})
+
+test("exportBinds: enabled defaults to true unless explicitly false", () => {
+  assert.equal(JSON.parse(Model.exportBinds([], undefined)).enabled, true)
+})
+
+test("parseImport: round trip returns the sanitized binds and enabled state", () => {
+  const binds = [
+    { trigger: "mouse:275", combo: "SHIFT+N", enabled: true },
+    { trigger: "F5", combo: "CTRL+1", enabled: false }
+  ]
+  const r = plain(Model.parseImport(Model.exportBinds(binds, false)))
+  assert.deepEqual(r, { ok: true, binds, enabled: false, skipped: 0 })
+})
+
+test("parseImport: invalid JSON is an error", () => {
+  const r = Model.parseImport("{nope")
+  assert.equal(r.ok, false)
+  assert.equal(r.error, "El archivo no es JSON válido.")
+})
+
+test("parseImport: wrong app and newer version are errors", () => {
+  assert.equal(Model.parseImport(JSON.stringify({ app: "other", binds: [] })).ok, false)
+  const r = Model.parseImport(JSON.stringify({ app: "albion-binds", version: 2, binds: [] }))
+  assert.equal(r.ok, false)
+  assert.match(r.error, /versión/)
+})
+
+test("parseImport: object without a binds array is an error", () => {
+  assert.equal(Model.parseImport(JSON.stringify({ app: "albion-binds" })).ok, false)
+})
+
+test("parseImport: accepts a bare array and defaults enabled to true", () => {
+  const r = plain(Model.parseImport(JSON.stringify([{ trigger: "mouse:276", combo: "m" }])))
+  assert.deepEqual(r, { ok: true, binds: [{ trigger: "mouse:276", combo: "M", enabled: true }], enabled: true, skipped: 0 })
+})
+
+test("parseImport: counts invalid and duplicate-trigger entries as skipped, keeping the first", () => {
+  const r = plain(Model.parseImport(JSON.stringify({
+    binds: [
+      { trigger: "mouse:275", combo: "SHIFT+N" },
+      { trigger: "mouse:275", combo: "M" },
+      { trigger: "bad trigger!", combo: "M" },
+      { trigger: "F5", combo: "" }
+    ]
+  })))
+  assert.equal(r.ok, true)
+  assert.deepEqual(r.binds, [{ trigger: "mouse:275", combo: "SHIFT+N", enabled: true }])
+  assert.equal(r.skipped, 3)
+})
+
+test("parseImport: entries present but none valid is an error; empty list is ok", () => {
+  assert.equal(Model.parseImport(JSON.stringify({ binds: [{ trigger: "!", combo: "" }] })).ok, false)
+  const r = plain(Model.parseImport(JSON.stringify({ binds: [] })))
+  assert.deepEqual(r, { ok: true, binds: [], enabled: true, skipped: 0 })
+})
+
+test("parseImport: non-object and non-array JSON is an error", () => {
+  assert.equal(Model.parseImport("42").ok, false)
+  assert.equal(Model.parseImport("null").ok, false)
+  assert.equal(Model.parseImport("\"x\"").ok, false)
+})
