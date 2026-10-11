@@ -301,6 +301,31 @@ function parseInteger(text) {
   return /^[0-9]+$/.test(t) ? Number(t) : null
 }
 
+// Silver amount typed by the user: whole number, grouped digits ("1.500.000",
+// "1,500,000") or shorthand with a k/m suffix ("450k", "1.2m", "12,5k").
+// A separator followed by exactly 3 digits is a thousands separator; any other
+// single separator is a decimal point and needs a suffix ("1.5" is rejected as
+// ambiguous). Returns a whole number or null (negative, mixed or repeated
+// separators, several suffixes, a fractional result, garbage).
+function parseSilver(text) {
+  if (typeof text !== "string") return null
+  var t = text.trim().toLowerCase()
+  if (/^[0-9]{1,3}( [0-9]{3})+$/.test(t)) t = t.replace(/ /g, ",")
+  var m = /^([0-9][0-9.,]*)([km]?)$/.exec(t)
+  if (!m) return null
+  var body = m[1]
+  var multiplier = m[2] === "k" ? 1000 : m[2] === "m" ? 1000000 : 1
+  var value
+  if (/^[0-9]+$/.test(body)) value = Number(body)
+  else if (/^[0-9]{1,3}(\.[0-9]{3})+$/.test(body) || /^[0-9]{1,3}(,[0-9]{3})+$/.test(body)) value = Number(body.replace(/[.,]/g, ""))
+  else if (multiplier > 1 && /^[0-9]+[.,][0-9]+$/.test(body)) value = Number(body.replace(",", "."))
+  else return null
+  var result = value * multiplier
+  var rounded = Math.round(result)
+  if (Math.abs(result - rounded) > 1e-6 || !isFinite(rounded) || rounded > 9007199254740991) return null
+  return rounded
+}
+
 // "6.5" or "6,5" (percent) -> 0.065.
 function parsePercent(text) {
   if (text === null || text === undefined) return null
@@ -319,6 +344,17 @@ function formatSilver(value) {
   var sign = value < 0 ? "-" : ""
   var digits = String(Math.abs(Math.round(value)))
   return sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+}
+
+// Compact amount for buttons: "12k", "1.2m" when exact, otherwise grouped digits.
+function formatShort(value) {
+  if (typeof value !== "number" || !isFinite(value)) return "-"
+  var n = Math.round(value)
+  var abs = Math.abs(n)
+  var sign = n < 0 ? "-" : ""
+  if (abs >= 1000000 && abs % 10000 === 0) return sign + String(abs / 1000000) + "m"
+  if (abs >= 1000 && abs < 1000000 && abs % 100 === 0) return sign + String(abs / 1000) + "k"
+  return formatSilver(n)
 }
 
 // ---------- Queries ----------

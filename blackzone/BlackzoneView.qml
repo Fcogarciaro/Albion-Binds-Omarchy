@@ -319,8 +319,8 @@ Column {
   }
 
   function saveDeath() {
-    var typed = deathValueField.text.trim() === "" ? null : Farm.parseInteger(deathValueField.text)
-    if (deathValueField.text.trim() !== "" && typed === null) { errorText = "El valor perdido debe ser un número entero."; return }
+    var typed = deathValueField.text.trim() === "" ? null : Farm.parseSilver(deathValueField.text)
+    if (deathValueField.text.trim() !== "" && typed === null) { errorText = "Valor no válido. Usa un número entero o 450k, 1.2m."; return }
     if (typed === null && pricedValue() === 0) { errorText = "Consulta los precios o escribe el valor perdido."; return }
     var input = { setId: deathSetId, now: Date.now(), id: newId("d"), prices: deathPrices }
     if (typed !== null) input.value = typed
@@ -337,8 +337,8 @@ Column {
   function saveLoot() {
     var tomes = parseTomeInput()
     if (tomes === null) { errorText = "Los tomos deben ser números enteros."; return }
-    var value = lootValueField.text.trim() === "" && hasTomes(tomes) ? 0 : Farm.parseInteger(lootValueField.text)
-    if (value === null) { errorText = "El valor del botín debe ser un número entero."; return }
+    var value = lootValueField.text.trim() === "" && hasTomes(tomes) ? 0 : Farm.parseSilver(lootValueField.text)
+    if (value === null) { errorText = "Valor no válido. Usa un número entero o 450k, 1.2m."; return }
     if (commit(Bz.logLoot(blackzone, { value: value, tomes: tomes, note: lootNoteField.text, now: Date.now(), id: newId("l") }))) {
       tomeInput = ({})
       tomeFormCleared()
@@ -351,8 +351,8 @@ Column {
   // ---------- Expenses ----------
 
   function saveExpense() {
-    var value = Farm.parseInteger(expenseValueField.text)
-    if (value === null || value <= 0) { errorText = "El gasto debe ser un número entero mayor que 0."; return }
+    var value = Farm.parseSilver(expenseValueField.text)
+    if (value === null || value <= 0) { errorText = "El gasto debe ser un número mayor que 0 (ej. 12k, 1.5m)."; return }
     if (commit(Bz.logExpense(blackzone, { value: value, note: expenseNoteField.text, now: Date.now(), id: newId("x") }))) {
       expenseValueField.text = ""
       expenseNoteField.text = ""
@@ -901,7 +901,7 @@ Column {
         TextField {
           id: deathValueField
           width: parent.width
-          placeholderText: "Valor perdido (plata)"
+          placeholderText: "Valor perdido (ej. 450k)"
           font.family: owner.bar.fontFamily
           font.pixelSize: Style.font.body
           foreground: owner.bar.foreground
@@ -962,7 +962,7 @@ Column {
       TextField {
         id: lootValueField
         width: parent.width
-        placeholderText: "Valor del botín (plata)"
+        placeholderText: "Valor del botín (ej. 1.2m)"
         font.family: owner.bar.fontFamily
         font.pixelSize: Style.font.body
         foreground: owner.bar.foreground
@@ -1071,7 +1071,7 @@ Column {
       TextField {
         id: expenseValueField
         width: parent.width
-        placeholderText: "Gasto (plata)"
+        placeholderText: "Gasto (ej. 12k)"
         font.family: owner.bar.fontFamily
         font.pixelSize: Style.font.body
         foreground: owner.bar.foreground

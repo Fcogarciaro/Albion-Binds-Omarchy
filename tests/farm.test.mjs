@@ -298,3 +298,52 @@ test("setTaxRate keeps the planner settings", () => {
   const start = ok(Farm.setPlannerSettings(empty(), { focus: false }))
   assert.deepEqual(ok(Farm.setTaxRate(start, 0.04)).settings, { taxRate: 0.04, premium: true, focus: false, seedsPerPlot: 9 })
 })
+
+test("parseSilver: plain integers and thousands separators", () => {
+  assert.equal(Farm.parseSilver("0"), 0)
+  assert.equal(Farm.parseSilver("1234"), 1234)
+  assert.equal(Farm.parseSilver(" 12000 "), 12000)
+  assert.equal(Farm.parseSilver("1.500.000"), 1500000)
+  assert.equal(Farm.parseSilver("1,500,000"), 1500000)
+  assert.equal(Farm.parseSilver("1.500"), 1500)
+  assert.equal(Farm.parseSilver("1,234"), 1234)
+  assert.equal(Farm.parseSilver("1 234 567"), 1234567)
+})
+
+test("parseSilver: k and m suffixes, case-insensitive, decimal point or comma", () => {
+  assert.equal(Farm.parseSilver("450k"), 450000)
+  assert.equal(Farm.parseSilver("450K"), 450000)
+  assert.equal(Farm.parseSilver("1.2m"), 1200000)
+  assert.equal(Farm.parseSilver("12,5k"), 12500)
+  assert.equal(Farm.parseSilver("2M"), 2000000)
+  assert.equal(Farm.parseSilver("0.5m"), 500000)
+  assert.equal(Farm.parseSilver("1.1m"), 1100000)
+  assert.equal(Farm.parseSilver("1.2345m"), 1234500)
+  assert.equal(Farm.parseSilver("1.500k"), 1500000)
+  assert.equal(Farm.parseSilver("1,500,000k"), 1500000000)
+})
+
+test("parseSilver: a single separator that is not 3 digits needs a suffix", () => {
+  for (const bad of ["1.5", "1,5", "12.50", "0,25"]) assert.equal(Farm.parseSilver(bad), null, bad)
+})
+
+test("parseSilver: rejects invalid or ambiguous input", () => {
+  const bad = ["", "  ", "abc", "-5", "-1k", "+5", "1.2.3k", "1,5.2k", "1.500,000", "12kk", "1k2", "k", "m", ".5k", "5.k", "1e5", "1.2345k", "1 23", "1.5 m", "10 k", null, undefined, 5, "9999999999999999999"]
+  for (const text of bad) assert.equal(Farm.parseSilver(text), null, String(text))
+})
+
+test("parseSilver: round trip with formatSilver", () => {
+  for (const n of [0, 7, 999, 1000, 12345, 1500000, 987654321]) assert.equal(Farm.parseSilver(Farm.formatSilver(n)), n, String(n))
+})
+
+test("formatShort: shorthand when exact, grouped digits otherwise", () => {
+  assert.equal(Farm.formatShort(12000), "12k")
+  assert.equal(Farm.formatShort(12500), "12.5k")
+  assert.equal(Farm.formatShort(1200000), "1.2m")
+  assert.equal(Farm.formatShort(2000000), "2m")
+  assert.equal(Farm.formatShort(950), "950")
+  assert.equal(Farm.formatShort(1234), "1,234")
+  assert.equal(Farm.formatShort(1234567), "1,234,567")
+  assert.equal(Farm.formatShort("x"), "-")
+  for (const n of [0, 950, 1234, 12000, 12500, 1200000, 2000000, 1234567]) assert.equal(Farm.parseSilver(Farm.formatShort(n)), n, String(n))
+})

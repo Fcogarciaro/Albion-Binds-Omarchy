@@ -128,9 +128,9 @@ Column {
 
   function plant() {
     var seeds = Farm.parseInteger(seedsField.text)
-    var price = seedPriceField.text.trim() === "" ? 0 : Farm.parseInteger(seedPriceField.text)
+    var price = seedPriceField.text.trim() === "" ? 0 : Farm.parseSilver(seedPriceField.text)
     if (seeds === null) { errorText = "Las semillas plantadas deben ser un número entero mayor que 0."; return }
-    if (price === null) { errorText = "El precio de la semilla debe ser un número entero."; return }
+    if (price === null) { errorText = "Precio no válido. Usa un número entero o 450k, 1.2m (un decimal solo con k o m)."; return }
     if (commit(Farm.plantCycle(farm, {
       plotId: activePlotId, crop: plantCrop, seedsPlanted: seeds, seedPrice: price,
       now: Date.now(), id: newId("c")
@@ -140,9 +140,9 @@ Column {
   function harvest() {
     var crops = Farm.parseInteger(harvestedField.text)
     var returned = returnedField.text.trim() === "" ? 0 : Farm.parseInteger(returnedField.text)
-    var price = cropPriceField.text.trim() === "" ? 0 : Farm.parseInteger(cropPriceField.text)
+    var price = cropPriceField.text.trim() === "" ? 0 : Farm.parseSilver(cropPriceField.text)
     if (crops === null) { errorText = "Escribe cuántos cultivos cosechaste (0 si se perdieron)."; return }
-    if (returned === null || price === null) { errorText = "Semillas devueltas y precio deben ser números enteros."; return }
+    if (returned === null || price === null) { errorText = "Semillas devueltas: número entero. Precio: número entero o 450k, 1.2m."; return }
     if (commit(Farm.harvestCycle(farm, {
       cycleId: activeCycle ? activeCycle.id : "", cropsHarvested: crops, seedsReturned: returned,
       cropPrice: price, now: Date.now()
@@ -155,7 +155,7 @@ Column {
     var crops = Farm.parseInteger(harvestedField.text)
     if (crops === null) return null
     var returned = Farm.parseInteger(returnedField.text) || 0
-    var price = Farm.parseInteger(cropPriceField.text) || 0
+    var price = Farm.parseSilver(cropPriceField.text) || 0
     return Farm.cycleProfit({
       seedsPlanted: activeCycle.seedsPlanted, seedPrice: activeCycle.seedPrice, harvestedAt: 1,
       cropsHarvested: crops, seedsReturned: returned, cropPrice: price
@@ -717,7 +717,7 @@ Column {
       id: seedPriceField
       visible: view.activeMode === "plant"
       width: parent.width
-      placeholderText: "Precio por semilla (plata)"
+      placeholderText: "Precio por semilla (ej. 450k)"
       font.family: owner.bar.fontFamily
       font.pixelSize: Style.font.body
       foreground: owner.bar.foreground
@@ -753,7 +753,7 @@ Column {
       id: cropPriceField
       visible: view.activeMode === "harvest"
       width: parent.width
-      placeholderText: "Precio de venta por cultivo (plata)"
+      placeholderText: "Precio por cultivo (ej. 1.2k)"
       font.family: owner.bar.fontFamily
       font.pixelSize: Style.font.body
       foreground: owner.bar.foreground
