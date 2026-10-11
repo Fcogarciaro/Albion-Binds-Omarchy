@@ -150,3 +150,13 @@ Left unchanged (already official or no game term):
   - It flags the old file: renameField, pieceSlotDropdown, ...
   - It finds nothing in the new BlackzoneView, FarmView or BindsView.
 - QML-only, so no pure logic to TDD. `npm test` 166/166. qmllint: 0 errors. QML not run live.
+
+## Follow-up: tomes of insight in loot (requested 2026-10-11)
+- The user wants to count untradeable "Tomo de conocimiento" drops per tier, only to know how many they have. They have no silver value and do not affect profit.
+- Game ids are `T<n>_SKILLBOOK_NONTRADABLE`, with ES-ES name "Tomo de conocimiento del <grado>". T1-T3 were seen by the parent. The writer verifies the full tier range.
+- [ ] T5: Loot event gets an optional `tomes: { "<tier>": count }`.
+  - Pure, test-first: sanitize, `logLoot` input and totals per tier.
+  - The loot form gets per-tier counters.
+  - The summary and history show the counts.
+  - README.
+  - Branch `feat/insight-tomes`. Route: delegated writer.
