@@ -62,3 +62,19 @@ Give the user a large floating window for data entry, besides the ~380px bar pan
 - README: new section "🪟 Ventana grande" (before the Nextcloud section) plus a pointer in the intro. Covers: button (Cultivos/Zona negra tabs), Esc / Cerrar / click-outside / Tab, Atajos stays in the bar panel, optional bind, last-write-wins note, and `omarchy restart shell` if the window does not open after updating.
 - Bind: Omarchy keeps personal binds in `~/.config/hypr/bindings.lua` (template header and an existing `o.bind(..., "omarchy-shell shell toggle mirador '{}'")` entry there). Line: `o.bind("SUPER + ALT + A", "Albion Companion", "omarchy-shell shell toggle fcogarcia.albion-companion '{}'")`.
 - Docs only; `npm test` 185/185.
+
+## Fix: stale bar panel after saving in the window
+
+Bug: an entry logged in the large window never reached the bar panel (not in history after reopening), and the panel's next save would have overwritten the file and dropped it.
+
+Root cause: Panel.qml and Window.qml each had their own `DataStore`. A FileView whose file does not exist when it starts (first run: `onLoadFailed`) never attaches its inotify watch, so that store never got `fileChanged`, not even for its own writes, and kept a stale document. Not a reloadOutcome/echo-skip problem; not per-path watcher dedupe.
+
+Evidence (scratch `qs -p`, HOME in a temp dir, two DataStore copies in one process, logging `fileChanged`/`onLoaded`):
+- No file at start: A saves, B (created later) loads A's data fine; B saves, A gets NO `fileChanged` and keeps A's value; an external `mv`-over edit also reaches only B.
+- File pre-existing at start: both stores get `fileChanged` and converge in both directions (A to B and B to A). So the watcher logic is sound once attached.
+
+Fix: `shared/DataStore.qml` is a `pragma Singleton` (`shared/qmldir`: `singleton DataStore 1.0 DataStore.qml`); Panel.qml and Window.qml use `DataStore` as `store`. The shell loads both entry points as `file://<plugin dir>/Panel.qml|Window.qml` (PluginRegistry.entryPointUrl, shell.qml panel Loader and Bar.qml), so `import "shared"` resolves the same module URL. Verified with a plugin dir outside the config dir: `la.item.store === lb.item.store` is true; A's save visible in B and vice versa. The singleton also re-arms the watcher after the first save (`watchChanges` off/on in `onSaved`); without that, an external edit after a first-run save is missed (checked: negative run gives A=fromB, with it fromEXT).
+
+Checks: `npm test` 189/189 (no pure-logic change). qmllint: 0 errors, no new categories.
+
+Residual risks: Nextcloud syncing the data dir can drop `data.json.tmp`-like or conflicted-copy files there (ignored; only `data.json` is read). A sync that replaces data.json mid-edit is handled by the existing reload (pending writes defer it). The live shell must be restarted to load the singleton.
