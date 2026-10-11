@@ -188,7 +188,152 @@ semillas × cultivos por semilla × precio × (1 − impuesto)  +  (semillas dev
 
 ### Dónde se guardan los datos
 
-En `~/.local/share/albion-companion/data.json`. Se guarda solo, cada vez que haces un cambio. Copia ese archivo para llevar tu historial a otra PC.
+En `~/.local/share/albion-companion/data.json`. Se guarda solo, cada vez que haces un cambio.
+Para tener el mismo historial en varias PCs, sigue [Sincronizar tus datos entre PCs](#-sincronizar-tus-datos-entre-pcs-nextcloud).
+
+---
+
+## ☁️ Sincronizar tus datos entre PCs (Nextcloud)
+
+Si juegas en más de una PC, puedes hacer que todas usen **el mismo historial de cultivos** sin anotarlo dos veces.
+La idea: el archivo de datos vive dentro de tu carpeta de **Nextcloud**, y Nextcloud lo mantiene igual en todas tus PCs.
+
+- Basta con que **una** PC esté encendida: Nextcloud sube el cambio a tu servidor y la otra PC lo baja cuando se prende.
+- El plugin **detecta solo** cuando el archivo cambia y recarga los datos. No tienes que reiniciar nada.
+- Esto sincroniza **solo los datos de Cultivos**. Tus atajos se siguen pasando con [Exportar e Importar](#-llevar-tus-atajos-a-otra-pc).
+
+### Antes de empezar
+
+Necesitas:
+
+- El cliente de Nextcloud instalado y con tu cuenta iniciada en **cada PC**. Si no lo tienes:
+
+  ```sh
+  sudo pacman -S nextcloud-client
+  ```
+
+- Saber **dónde está tu carpeta de Nextcloud** en la PC. Casi siempre es `~/Nextcloud`.
+  Para confirmarlo, abre el cliente de Nextcloud, ve a la configuración de tu cuenta y mira la ruta de la carpeta local.
+  En los comandos de abajo se usa `~/Nextcloud`. **Si la tuya es otra, cámbiala en cada comando.**
+
+### Paso 1: En la PC que tiene tus datos buenos
+
+Hazlo en la PC donde ya anotaste tus parcelas y ciclos. Abre una terminal (**`Super + Enter`**) y ejecuta estos comandos **uno por uno**:
+
+1. Crea la carpeta dentro de Nextcloud:
+
+   ```sh
+   mkdir -p ~/Nextcloud/albion-companion
+   ```
+
+2. Mueve tu archivo de datos a esa carpeta:
+
+   ```sh
+   mv ~/.local/share/albion-companion/data.json ~/Nextcloud/albion-companion/
+   ```
+
+3. Borra la carpeta vieja, que ahora está vacía:
+
+   ```sh
+   rmdir ~/.local/share/albion-companion
+   ```
+
+   > Si dice **"Directory not empty"**, detente. Hay otros archivos ahí. Muévelos también a `~/Nextcloud/albion-companion/` y vuelve a intentarlo.
+
+4. Crea un **acceso directo** (symlink) en el lugar donde el plugin busca sus datos, apuntando a la carpeta de Nextcloud:
+
+   ```sh
+   ln -s ~/Nextcloud/albion-companion ~/.local/share/albion-companion
+   ```
+
+5. Reinicia la barra para que el plugin lea los datos desde la nueva ubicación:
+
+   ```sh
+   omarchy restart shell
+   ```
+
+6. Abre la pestaña **Cultivos** y confirma que tus parcelas siguen ahí.
+
+7. Espera a que el ícono de Nextcloud indique que **terminó de sincronizar** antes de seguir con la otra PC.
+
+### Paso 2: En cada una de las otras PCs
+
+1. Espera a que Nextcloud baje la carpeta. Confirma que el archivo ya está:
+
+   ```sh
+   ls ~/Nextcloud/albion-companion/
+   ```
+
+   Debe aparecer `data.json`. Si no aparece, espera a que Nextcloud termine de sincronizar y vuelve a revisar.
+
+2. Guarda como respaldo lo que tenía esta PC (por si acaso):
+
+   ```sh
+   mv ~/.local/share/albion-companion ~/.local/share/albion-companion.bak
+   ```
+
+   > Si dice **"No such file or directory"**, no pasa nada: esta PC no tenía datos. Sigue con el siguiente comando.
+
+3. Crea el acceso directo:
+
+   ```sh
+   ln -s ~/Nextcloud/albion-companion ~/.local/share/albion-companion
+   ```
+
+4. Reinicia la barra:
+
+   ```sh
+   omarchy restart shell
+   ```
+
+5. Abre la pestaña **Cultivos**: debes ver las mismas parcelas que en la primera PC.
+
+### Paso 3: Comprueba que funciona
+
+1. En una PC, agrega una parcela de prueba (por ejemplo, `prueba`).
+2. Espera unos segundos a que Nextcloud sincronice.
+3. En la otra PC, abre la pestaña **Cultivos**. La parcela `prueba` debe aparecer **sin reiniciar nada**.
+4. Bórrala con **Eliminar parcela**.
+
+> **¿No aparece?** Ejecuta `omarchy restart shell` en esa PC. Si con eso aparece, la sincronización funciona pero la recarga automática no;
+> [abre un issue](https://github.com/Fcogarciaro/Albion-Companion-Omarchy/issues) para revisarlo.
+
+### Reglas importantes
+
+- ⚠️ **Crea el acceso directo a la carpeta, nunca al archivo `data.json`.** El plugin guarda creando un archivo nuevo y reemplazando el anterior.
+  Si el acceso directo apunta al archivo, el primer guardado lo convierte en un archivo normal y la sincronización **se rompe sin avisar**.
+- ⚠️ **No hagas cambios en dos PCs al mismo tiempo.** Si las dos guardan antes de sincronizar, Nextcloud no puede mezclarlos:
+  conserva uno y guarda el otro como copia en conflicto (un archivo con `conflicted copy` en el nombre dentro de `~/Nextcloud/albion-companion/`).
+  Si ves uno, revisa cuál tiene los datos correctos y borra el otro.
+- Si Nextcloud no está corriendo, el plugin funciona igual con la copia local. Los cambios se suben cuando Nextcloud vuelva a correr.
+
+### Cómo comprobar que el acceso directo está bien
+
+```sh
+ls -l ~/.local/share/ | grep albion-companion
+```
+
+Debe verse algo así, con una flecha `->` apuntando a tu carpeta de Nextcloud:
+
+```
+albion-companion -> /home/tu-usuario/Nextcloud/albion-companion
+```
+
+Si no hay flecha, el acceso directo no está creado: repite el paso del `ln -s`.
+
+### Dejar de sincronizar (deshacerlo)
+
+En la PC donde quieras dejar de sincronizar:
+
+```sh
+rm ~/.local/share/albion-companion
+mkdir -p ~/.local/share/albion-companion
+cp ~/Nextcloud/albion-companion/data.json ~/.local/share/albion-companion/
+omarchy restart shell
+```
+
+> El primer comando borra **solo el acceso directo**, no tus datos. Escríbelo **sin** `/` al final.
+> Tus datos siguen en Nextcloud y ahora tienes una copia local independiente.
 
 ---
 
