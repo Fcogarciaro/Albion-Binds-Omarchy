@@ -3,7 +3,8 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
-import "Model.js" as Model
+import "binds/Binds.js" as Binds
+import "backup/Backup.js" as Backup
 
 Panel {
   id: root
@@ -13,7 +14,7 @@ Panel {
   readonly property string trashIcon: String.fromCodePoint(0xF01B4)
 
   readonly property bool masterEnabled: setting("enabled", true) !== false
-  readonly property var binds: Model.sanitizeBinds(setting("binds", Model.DEFAULT_BINDS))
+  readonly property var binds: Binds.sanitizeBinds(setting("binds", Binds.DEFAULT_BINDS))
   readonly property int activeCount: binds.filter(function(b) { return b.enabled }).length
 
   property string newTrigger: "mouse:275"
@@ -33,25 +34,25 @@ Panel {
   }
 
   function applyToHyprland() {
-    pendingLua = Model.generateLua(root.binds, root.masterEnabled)
+    pendingLua = Binds.generateLua(root.binds, root.masterEnabled)
     if (applyProc.running) return
     runApply()
   }
 
   function runApply() {
-    var script = decodeURIComponent(String(Qt.resolvedUrl("apply.sh")).replace(/^file:\/\//, ""))
+    var script = decodeURIComponent(String(Qt.resolvedUrl("binds/apply.sh")).replace(/^file:\/\//, ""))
     applyProc.command = ["bash", script, pendingLua]
     pendingLua = ""
     applyProc.running = true
   }
 
   function addBind() {
-    var trigger = Model.normalizeTrigger(newTrigger === "custom" ? customTriggerField.text : newTrigger)
-    var combo = Model.parseCombo(comboField.text)
+    var trigger = Binds.normalizeTrigger(newTrigger === "custom" ? customTriggerField.text : newTrigger)
+    var combo = Binds.parseCombo(comboField.text)
     if (!trigger) { errorText = "Botón o tecla no válido (ej. mouse:275, F5)."; return }
     if (!combo) { errorText = "Atajo no válido (ej. SHIFT+N, CTRL+ALT+1)."; return }
     if (binds.some(function(b) { return b.trigger === trigger })) {
-      errorText = Model.triggerLabel(trigger) + " ya tiene un atajo."
+      errorText = Binds.triggerLabel(trigger) + " ya tiene un atajo."
       return
     }
 
@@ -82,7 +83,7 @@ Panel {
   function exportBackup() {
     setBackupStatus("", false)
     backupAction = "export"
-    backupFile.setText(Model.exportBinds(root.binds, root.masterEnabled))
+    backupFile.setText(Backup.exportBinds(root.binds, root.masterEnabled, Binds.sanitizeBinds))
   }
 
   function importBackup() {
@@ -92,7 +93,7 @@ Panel {
   }
 
   function finishImport(text) {
-    var result = Model.parseImport(text)
+    var result = Backup.parseImport(text, Binds.sanitizeBinds)
     if (!result.ok) { setBackupStatus(result.error, true); return }
     save({ binds: result.binds, enabled: result.enabled })
     setBackupStatus("Importados " + result.binds.length + " atajos."
@@ -282,7 +283,7 @@ Panel {
 
                 Text {
                   textFormat: Text.PlainText
-                  text: Model.triggerLabel(bindRow.modelData.trigger) + "  →  " + bindRow.modelData.combo
+                  text: Binds.triggerLabel(bindRow.modelData.trigger) + "  →  " + bindRow.modelData.combo
                   color: root.bar.foreground
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.body
@@ -345,7 +346,7 @@ Panel {
             width: parent.width
             label: "Botón"
             value: root.newTrigger
-            options: Model.TRIGGER_PRESETS
+            options: Binds.TRIGGER_PRESETS
             foreground: root.bar.foreground
             fontFamily: root.bar.fontFamily
             onChanged: function(v) { root.newTrigger = v; root.errorText = "" }

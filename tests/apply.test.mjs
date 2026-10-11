@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, exist
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-const APPLY = new URL("../apply.sh", import.meta.url).pathname
+const APPLY = new URL("../binds/apply.sh", import.meta.url).pathname
 const hasLuac = spawnSync("luac", ["-v"], { encoding: "utf8" }).error === undefined
 const MARKER = 'pcall(require, "hypr.albion-binds")'
 const VALID = "local x = 1\n"

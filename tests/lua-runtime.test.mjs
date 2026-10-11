@@ -4,9 +4,9 @@ import { spawnSync } from "node:child_process"
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { loadModel } from "./helpers/load-model.mjs"
+import { loadBinds } from "./helpers/load-model.mjs"
 
-const Model = loadModel()
+const Model = loadBinds()
 const hasBin = (name) => spawnSync(name, ["-v"], { encoding: "utf8" }).error === undefined
 const hasLua = hasBin("lua")
 const hasLuac = hasBin("luac")
