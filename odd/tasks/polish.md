@@ -30,7 +30,7 @@ Verified against the installed Omarchy shell and the Hyprland 0.56.2 Lua stubs (
 
 ## Tasks
 - [x] T1: Test harness and baseline tests for `Model.js` and the generated Lua. Route: delegated writer (2+ non-trivial files).
-- [ ] T2: Lua runtime fixes: keep bind handles, add a busy guard, release held modifiers on focus loss, match `initial_class`. Route: same writer.
+- [x] T2: Lua runtime fixes: keep bind handles, add a busy guard, release held modifiers on focus loss, match `initial_class`. Route: same writer.
 - [ ] T3: `apply.sh`: validate the generated Lua with `luac -p` when available, before writing. Route: same writer.
 - [ ] T4: `Panel.qml` hardening: `decodeURIComponent`, the `typeof` guard, Dropdown `popupOpen` in `blocked`, Escape on `customTriggerField`. `Model.js`: uppercase trigger modifiers. Route: same writer.
 - [ ] T5: README: explain how things work now and how to clean up when uninstalling. Route: same writer.
@@ -47,4 +47,5 @@ Verified against the installed Omarchy shell and the Hyprland 0.56.2 Lua stubs (
 
 ## Progress / evidence
 - T1: test harness (node:test, vm loader for Model.js, mocked-`hl` Lua runtime tests) and baseline tests. Baseline tests describe existing behavior, so no RED phase; first run had 1 failure from my own invalid fixture ("bad+" is valid), fixed. GREEN: 23/23. Node 26 rejects the directory argument (`node --test tests/` -> MODULE_NOT_FOUND), so `package.json` adds `npm test` = `node --test "tests/**/*.test.mjs"`.
+- T2 (commit a818c26 was T1): tests written first; RED observed: 7 of 30 failing (hl.unbind used instead of handles, no initial_class, no busy/release logic, Spanish comments). Implemented handles + busy + generation + release_all (also releases the main key if still down) + initial_class + English comments. GREEN: 30/30 after correcting one of my own expectations (the test held M down at the point of focus loss, so M up is correct). Mock caveat: timers are flushed manually, real Hyprland timers are async.
 _(updated per task)_
