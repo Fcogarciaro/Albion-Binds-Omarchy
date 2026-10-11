@@ -26,7 +26,7 @@ The user rotates crops by price on one island with several plots, and wants to s
 
 ## Tasks
 - [x] T1: `DataStore.qml` reloads on external file change (FileView watch). Avoid a reload loop on its own writes, and never drop a pending save. Verify the API in the Quickshell qmltypes. Route: delegated writer.
-- [ ] T2: Research the game yield constants with sources: crops per seed, seed return with and without premium/focus, and seeds per farm plot. Route: delegated research worker, read-only.
+- [x] T2: Research the game yield constants with sources: crops per seed, seed return with and without premium/focus, and seeds per farm plot. Route: delegated research worker, read-only.
 - [ ] T3: `farm/Planner.js`, pure and test-first: per-crop yield from history with a fallback to the estimates, expected profit and ranking. Route: delegated writer.
 - [ ] T4: Planner section in `FarmView.qml`: city, fetch all crop and seed prices in one request, ranked list with source label. Route: same writer.
 - [ ] T5: README: planner section, plus how to sync with Syncthing. Route: same writer.
@@ -50,3 +50,35 @@ The user rotates crops by price on one island with several plots, and wants to s
 - DataStore end-to-end run (HOME override): own save emitted no extra document change; external edit applied; invalid JSON kept doc plus error; delete kept doc; re-create applied and cleared the error.
 - qmllint: only the baseline `signal-handler-parameters` warning (line moved).
 - Unverified: FileView internals (inode vs path; source not installed), only observed behavior.
+
+### T2 (research worker, parent spot-checked)
+Source: ao-bin-dumps master, fetched 2026-10-11.
+- https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/items.xml
+- https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/loot.xml
+
+Constants:
+- Growth time: 79200 s (22 h), all tiers (`harvest growtime`).
+- Crops per harvested seed, non-premium: 3 to 6, avg 4.5, all tiers.
+  - Source: loot.xml `T<n>_<CROP>_LOOT amount="3-6"`.
+  - The parent verified this for T8_PUMPKIN_LOOT.
+- Premium doubles the crop yield (avg 9). Source: wiki snippet (https://wiki.albiononline.com/wiki/Crops). Medium-high confidence; it is not in the XML.
+- Seed return per harvested plant, without focus (`<seed chance>`) and with focus (`chance + activefarmbonus`). The parent verified T8 activefarmbonus = 0.1333.
+
+  | Tier | Crop | No focus | Focus |
+  |---|---|---|---|
+  | T1 | carrot | 0 | 2.0 |
+  | T2 | bean | 0.3333 | 1.6667 |
+  | T3 | wheat | 0.6 | 1.4 |
+  | T4 | turnip | 0.7333 | 1.2667 |
+  | T5 | cabbage | 0.8 | 1.2 |
+  | T6 | potato | 0.8667 | 1.1333 |
+  | T7 | corn | 0.9111 | 1.0889 |
+  | T8 | pumpkin | 0.9333 | 1.0667 |
+
+- Each harvest has a 10% chance of a T1_WORM. It is ignored.
+
+Gaps, all exposed as editable planner settings instead of guessed:
+- 9 seeds per plot comes from a forum/guide snippet only. Setting, default 9.
+- Whether premium affects seed return is unknown. Assumed no.
+- Focus cost (1000) is per plot or per seed: unknown. Not used in profit.
+- Settings: premium (default on, consistent with the 4% tax), focus watering (default on), seeds per plot (default 9).
