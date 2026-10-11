@@ -69,3 +69,23 @@ test("parsePrices: ignores junk entries and bad prices", () => {
   assert.equal(r.ok, true)
   assert.deepEqual(r.prices, { T1_CARROT: null, T2_BEAN: null })
 })
+
+test("buildUrl: optional qualities list (default stays quality 1)", () => {
+  assert.match(Prices.buildUrl(["T4_2H_BOW"], "Lymhurst", "west", [1, 2, 3, 4, 5]), /&qualities=1,2,3,4,5$/)
+  assert.match(Prices.buildUrl(["T4_2H_BOW"], "Lymhurst", "west", [9, "x", 2]), /&qualities=2$/)
+  assert.match(Prices.buildUrl(["T4_2H_BOW"], "Lymhurst", "west", []), /&qualities=1$/)
+})
+
+test("parseQualityPrices: keys are itemId:quality, missing wanted keys are null", () => {
+  const text = JSON.stringify([
+    { item_id: "T4_2H_BOW", city: "Lymhurst", quality: 1, sell_price_min: 900 },
+    { item_id: "T4_2H_BOW", city: "Lymhurst", quality: 3, sell_price_min: 1500 },
+    { item_id: "T4_2H_BOW", city: "Lymhurst", quality: 3, sell_price_min: 1200 },
+    { item_id: "T4_2H_BOW", city: "Martlock", quality: 2, sell_price_min: 5 },
+    { item_id: "T5_POTION_HEAL", city: "Lymhurst", quality: 1, sell_price_min: 0 }
+  ])
+  const r = plain(Prices.parseQualityPrices(text, "Lymhurst", ["T4_2H_BOW:1", "T4_2H_BOW:2", "T5_POTION_HEAL:1"]))
+  assert.equal(r.ok, true)
+  assert.deepEqual(r.prices, { "T4_2H_BOW:1": 900, "T4_2H_BOW:3": 1200, "T4_2H_BOW:2": null, "T5_POTION_HEAL:1": null })
+  assert.equal(Prices.parseQualityPrices("{nope", "Lymhurst").ok, false)
+})

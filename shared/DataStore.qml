@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import "Storage.js" as Store
 import "../farm/Farm.js" as Farm
+import "../blackzone/Blackzone.js" as Blackzone
 
 // Loads ~/.local/share/albion-companion/data.json on start and saves it on
 // demand. The file is never created until saveData() is called.
@@ -59,7 +60,7 @@ Item {
   // Verified with Quickshell on this machine: watchChanges keeps firing
   // fileChanged after rename-over (Syncthing), delete and re-create.
   function applyReload(text) {
-    var out = Store.reloadOutcome(text, root.lastWritten, root.document, Farm.sanitizeFarm)
+    var out = Store.reloadOutcome(text, root.lastWritten, root.document, Farm.sanitizeFarm, Blackzone.sanitizeBlackzone)
     if (out.action === "apply") {
       root.document = out.data
       root.error = ""
@@ -87,7 +88,7 @@ Item {
       if (root.loaded) {
         root.applyReload(text())
       } else {
-        var result = Store.parseData(text(), Farm.sanitizeFarm)
+        var result = Store.parseData(text(), Farm.sanitizeFarm, Blackzone.sanitizeBlackzone)
         if (result.ok) {
           root.document = result.data
           root.error = ""

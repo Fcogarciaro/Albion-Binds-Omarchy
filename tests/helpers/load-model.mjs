@@ -22,3 +22,4 @@ export const loadPlanner = () => loadModule("farm/Planner.js")
 export function plain(value) {
   return JSON.parse(JSON.stringify(value))
 }
+export const loadBlackzone = () => loadModule("blackzone/Blackzone.js")

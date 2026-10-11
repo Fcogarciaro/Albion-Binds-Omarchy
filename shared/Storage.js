@@ -38,8 +38,10 @@ function settingsOr(settings) {
 // Parses the data file into { ok: true, data } or { ok: false, error }.
 // Missing or wrongly typed sections fall back to their defaults.
 // sanitizeFarm (optional, e.g. Farm.sanitizeFarm) cleans farm plots/cycles;
-// it is injected because modules do not import each other.
-function parseData(text, sanitizeFarm) {
+// sanitizeBlackzone (optional, e.g. Blackzone.sanitizeBlackzone) does the same
+// for the black zone sets and events. Both are injected because modules do
+// not import each other.
+function parseData(text, sanitizeFarm, sanitizeBlackzone) {
   var raw
   try {
     raw = JSON.parse(text)
@@ -59,12 +61,14 @@ function parseData(text, sanitizeFarm) {
     settings: settingsOr(farm.settings)
   }
   if (typeof sanitizeFarm === "function") farmData = sanitizeFarm(farmData)
+  var blackzoneData = { sets: listOr(blackzone.sets), events: listOr(blackzone.events) }
+  if (typeof sanitizeBlackzone === "function") blackzoneData = sanitizeBlackzone(blackzoneData)
   return {
     ok: true,
     data: {
       version: DATA_VERSION,
       farm: farmData,
-      blackzone: { sets: listOr(blackzone.sets), events: listOr(blackzone.events) }
+      blackzone: blackzoneData
     }
   }
 }
@@ -78,9 +82,9 @@ function serializeData(data) {
 // write echoing back. Returns { action: "same" } (nothing to apply),
 // { action: "apply", data } or { action: "error", error } (keep the current
 // document).
-function reloadOutcome(text, lastWritten, current, sanitizeFarm) {
+function reloadOutcome(text, lastWritten, current, sanitizeFarm, sanitizeBlackzone) {
   if (text === lastWritten) return { action: "same" }
-  var result = parseData(text, sanitizeFarm)
+  var result = parseData(text, sanitizeFarm, sanitizeBlackzone)
   if (!result.ok) return { action: "error", error: result.error }
   if (serializeData(result.data) === serializeData(current)) return { action: "same" }
   return { action: "apply", data: result.data }

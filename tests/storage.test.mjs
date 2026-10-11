@@ -120,3 +120,17 @@ test("parseData: planner settings load, and invalid ones fall back to defaults",
   }
   assert.equal(good.data.version, 1)
 })
+
+test("parseData: an injected blackzone sanitizer cleans sets and events", () => {
+  const sanitize = (bz) => ({ sets: bz.sets.filter((x) => x.id), events: [] })
+  const text = JSON.stringify({ version: 1, blackzone: { sets: [{ id: "s1" }, {}], events: [{ x: 1 }] } })
+  const r = plain(Storage.parseData(text, undefined, sanitize))
+  assert.deepEqual(r.data.blackzone, { sets: [{ id: "s1" }], events: [] })
+})
+
+test("reloadOutcome: honors the injected blackzone sanitizer", () => {
+  const sanitize = () => ({ sets: [], events: [] })
+  const current = plain(Storage.defaultData())
+  const text = JSON.stringify({ version: 1, blackzone: { sets: [{ id: "bad" }], events: [] } })
+  assert.equal(Storage.reloadOutcome(text, "", current, undefined, sanitize).action, "same")
+})
