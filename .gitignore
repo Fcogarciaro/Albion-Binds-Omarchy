@@ -1,0 +1,5 @@
+# Local AI tooling cache (skill registry), not part of the plugin
+.atl/
+
+# Dependencies, in case any are installed for development
+node_modules/
