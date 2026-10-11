@@ -43,7 +43,7 @@ Presiona **`Super + Enter`**. La tecla `Super` es la que tiene el logo de Window
 Copia la línea completa, pégala en la terminal con **`Ctrl + Shift + V`** y presiona **`Enter`**:
 
 ```sh
-omarchy plugin add https://github.com/Fcogarciaro/Albion-Binds-Omarchy.git --enable
+omarchy plugin add https://github.com/Fcogarciaro/Albion-Companion-Omarchy.git --enable
 ```
 
 Te va a hacer dos preguntas. Se contestan con las **flechas** y **`Enter`**:
@@ -151,7 +151,7 @@ así que hay que reinstalarlo. Tus atajos se recuperan con Exportar e Importar:
 3. Instala el nuevo:
 
    ```sh
-   omarchy plugin add https://github.com/Fcogarciaro/Albion-Binds-Omarchy.git --enable --yes
+   omarchy plugin add https://github.com/Fcogarciaro/Albion-Companion-Omarchy.git --enable --yes
    ```
 
 4. Abre el panel nuevo y presiona **Importar**. Si no existe `~/albion-companion.json`,
