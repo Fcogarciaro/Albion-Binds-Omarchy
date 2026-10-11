@@ -48,16 +48,12 @@ Item {
     else close()
   }
 
-  // Own store: it loads the same data file as the bar panel's store and both
-  // pick up each other's saves through the file watcher.
-  DataStore { id: dataStore }
-
   // What the shared views expect from their owner (Panel.qml provides the same
   // shape): `store`, plus `bar.foreground` and `bar.fontFamily` for styling.
   // Colors come from the shell theme, like the stock popups.
   QtObject {
     id: viewOwner
-    readonly property var store: dataStore
+    readonly property var store: DataStore
     readonly property QtObject bar: QtObject {
       readonly property color foreground: Color.popups.text
       readonly property string fontFamily: Style.font.family

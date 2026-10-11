@@ -93,8 +93,8 @@ Panel {
   }
 
   // Tracker data (farm log, black zone). Tabs read and save it through `store`.
-  DataStore { id: dataStore }
-  readonly property var store: dataStore
+  // Shared with the large window (one singleton document for both surfaces).
+  readonly property var store: DataStore
 
   // Opens the large window (Window.qml). The panel closes first so it does not
   // sit behind the window's exclusive keyboard focus.

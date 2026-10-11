@@ -1,3 +1,4 @@
+pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -7,6 +8,11 @@ import "../blackzone/Blackzone.js" as Blackzone
 
 // Loads ~/.local/share/albion-companion/data.json on start and saves it on
 // demand. The file is never created until saveData() is called.
+//
+// Singleton (see qmldir): the bar panel (Panel.qml) and the large window
+// (Window.qml) live in the same shell process and must edit ONE document.
+// With a store each, a surface that started before the file existed never
+// watched it and kept a stale copy whose next save dropped the other's data.
 Item {
   id: root
   visible: false
@@ -29,6 +35,9 @@ Item {
   property int pendingWrites: 0
   property bool reloadPending: false
   property bool reloadError: false
+  // False while the watcher could not attach (the file did not exist when it
+  // started): an inotify watch needs the file, so nothing would ever notify.
+  property bool watchArmed: false
 
   // FileView is not documented to create parent directories, so mkdir -p
   // runs first (same approach as plugins/notifications/Service.qml).
@@ -81,6 +90,7 @@ Item {
     watchChanges: true
     printErrors: false
     onLoaded: {
+      root.watchArmed = true
       if (root.loaded && root.pendingWrites > 0) {
         root.reloadPending = true
         return
@@ -105,7 +115,16 @@ Item {
       if (root.pendingWrites > 0) root.reloadPending = true
       else file.reload()
     }
-    onSaved: root.writeDone()
+    onSaved: {
+      // First save created the file: attach the watcher now so later external
+      // edits (sync, another PC) are noticed.
+      if (!root.watchArmed) {
+        root.watchArmed = true
+        file.watchChanges = false
+        file.watchChanges = true
+      }
+      root.writeDone()
+    }
     onSaveFailed: function(err) {
       root.error = "No pude guardar los datos."
       root.writeDone()
