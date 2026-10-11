@@ -13,7 +13,7 @@ test("exportBinds: writes app, version, enabled and sanitized binds, pretty-prin
   const text = Backup.exportBinds([{ trigger: "mouse:275", combo: "shift + n", enabled: true }], false)
   assert.ok(text.endsWith("}\n"))
   assert.deepEqual(JSON.parse(text), {
-    app: "albion-binds",
+    app: "albion-companion",
     version: 1,
     enabled: false,
     binds: [{ trigger: "mouse:275", combo: "SHIFT+N", enabled: true }]
@@ -42,13 +42,13 @@ test("parseImport: invalid JSON is an error", () => {
 
 test("parseImport: wrong app and newer version are errors", () => {
   assert.equal(Backup.parseImport(JSON.stringify({ app: "other", binds: [] })).ok, false)
-  const r = Backup.parseImport(JSON.stringify({ app: "albion-binds", version: 2, binds: [] }))
+  const r = Backup.parseImport(JSON.stringify({ app: "albion-companion", version: 2, binds: [] }))
   assert.equal(r.ok, false)
   assert.match(r.error, /versión/)
 })
 
 test("parseImport: object without a binds array is an error", () => {
-  assert.equal(Backup.parseImport(JSON.stringify({ app: "albion-binds" })).ok, false)
+  assert.equal(Backup.parseImport(JSON.stringify({ app: "albion-companion" })).ok, false)
 })
 
 test("parseImport: accepts a bare array and defaults enabled to true", () => {
@@ -80,4 +80,22 @@ test("parseImport: non-object and non-array JSON is an error", () => {
   assert.equal(Backup.parseImport("42").ok, false)
   assert.equal(Backup.parseImport("null").ok, false)
   assert.equal(Backup.parseImport("\"x\"").ok, false)
+})
+
+test("parseImport: accepts legacy albion-binds files", () => {
+  const r = plain(Backup.parseImport(JSON.stringify({
+    app: "albion-binds", version: 1, enabled: false,
+    binds: [{ trigger: "mouse:275", combo: "SHIFT+N", enabled: true }]
+  })))
+  assert.equal(r.ok, true)
+  assert.equal(r.enabled, false)
+  assert.deepEqual(r.binds, [{ trigger: "mouse:275", combo: "SHIFT+N", enabled: true }])
+})
+
+test("parseImport: a newer legacy version is still rejected", () => {
+  assert.equal(Backup.parseImport(JSON.stringify({ app: "albion-binds", version: 2, binds: [] })).ok, false)
+})
+
+test("exportBinds: never writes the legacy app name", () => {
+  assert.notEqual(JSON.parse(Backup.exportBinds([], true)).app, "albion-binds")
 })

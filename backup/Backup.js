@@ -3,11 +3,13 @@
 // Independent module: it receives sanitizeBinds from the caller because QML
 // script imports between .js files are not used by any stock plugin.
 
-var EXPORT_APP = "albion-binds"
+var EXPORT_APP = "albion-companion"
+// Files written by the old plugin (fcogarcia.albion-binds) are still importable.
+var LEGACY_APPS = ["albion-binds"]
 var EXPORT_VERSION = 1
 
 // sanitizeBinds is injected (Binds.sanitizeBinds).
-// Serializes the binds for ~/albion-binds.json (pretty-printed, trailing newline).
+// Serializes the binds for ~/albion-companion.json (pretty-printed, trailing newline).
 function exportBinds(binds, enabled, sanitizeBinds) {
   return JSON.stringify({
     app: EXPORT_APP,
@@ -32,10 +34,10 @@ function parseImport(text, sanitizeBinds) {
   if (Array.isArray(data)) {
     list = data
   } else if (data !== null && typeof data === "object") {
-    if (data.app !== undefined && data.app !== EXPORT_APP)
-      return { ok: false, error: "Este archivo no es un respaldo de Albion Binds." }
+    if (data.app !== undefined && data.app !== EXPORT_APP && LEGACY_APPS.indexOf(data.app) < 0)
+      return { ok: false, error: "Este archivo no es un respaldo de Albion Companion." }
     if (data.version !== undefined && !(Number(data.version) <= EXPORT_VERSION))
-      return { ok: false, error: "El archivo es de una versión más nueva de Albion Binds." }
+      return { ok: false, error: "El archivo es de una versión más nueva de Albion Companion." }
     if (!Array.isArray(data.binds))
       return { ok: false, error: "El archivo no tiene una lista de atajos." }
     list = data.binds

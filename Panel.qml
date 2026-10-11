@@ -20,7 +20,9 @@ Panel {
   property string newTrigger: "mouse:275"
   property string errorText: ""
   property string pendingLua: ""
-  property string backupPath: Quickshell.env("HOME") + "/albion-binds.json"
+  property string backupPath: Quickshell.env("HOME") + "/albion-companion.json"
+  // Backups written by the old Albion Binds plugin; used only when importing.
+  property string legacyBackupPath: Quickshell.env("HOME") + "/albion-binds.json"
   property string backupText: ""
   property bool backupFailed: false
   property string backupAction: ""
@@ -92,11 +94,11 @@ Panel {
     backupFile.reload()
   }
 
-  function finishImport(text) {
+  function finishImport(text, fileLabel) {
     var result = Backup.parseImport(text, Binds.sanitizeBinds)
     if (!result.ok) { setBackupStatus(result.error, true); return }
     save({ binds: result.binds, enabled: result.enabled })
-    setBackupStatus("Importados " + result.binds.length + " atajos."
+    setBackupStatus("Importados " + result.binds.length + " atajos desde " + fileLabel + "."
       + (result.skipped > 0 ? " (" + result.skipped + " ignorados)" : ""), false)
   }
 
@@ -112,22 +114,38 @@ Panel {
     onLoaded: {
       if (root.backupAction !== "import") return
       root.backupAction = ""
-      root.finishImport(text())
+      root.finishImport(text(), "~/albion-companion.json")
     }
     onLoadFailed: function(error) {
       if (root.backupAction !== "import") return
-      root.backupAction = ""
-      root.setBackupStatus("No encontré ~/albion-binds.json.", true)
+      // New file missing: fall back to the backup of the old plugin.
+      legacyBackupFile.reload()
     }
     onSaved: {
       if (root.backupAction !== "export") return
       root.backupAction = ""
-      root.setBackupStatus("Exportado a ~/albion-binds.json (" + root.binds.length + " atajos).", false)
+      root.setBackupStatus("Exportado a ~/albion-companion.json (" + root.binds.length + " atajos).", false)
     }
     onSaveFailed: function(error) {
       if (root.backupAction !== "export") return
       root.backupAction = ""
-      root.setBackupStatus("No pude guardar ~/albion-binds.json.", true)
+      root.setBackupStatus("No pude guardar ~/albion-companion.json.", true)
+    }
+  }
+
+  FileView {
+    id: legacyBackupFile
+    path: root.legacyBackupPath
+    printErrors: false
+    onLoaded: {
+      if (root.backupAction !== "import") return
+      root.backupAction = ""
+      root.finishImport(text(), "~/albion-binds.json")
+    }
+    onLoadFailed: function(error) {
+      if (root.backupAction !== "import") return
+      root.backupAction = ""
+      root.setBackupStatus("No encontré ~/albion-companion.json ni ~/albion-binds.json.", true)
     }
   }
 
@@ -418,7 +436,7 @@ Panel {
           Text {
             width: parent.width
             textFormat: Text.PlainText
-            text: "~/albion-binds.json"
+            text: "~/albion-companion.json"
             color: root.bar.foreground
             opacity: 0.6
             font.family: root.bar.fontFamily
