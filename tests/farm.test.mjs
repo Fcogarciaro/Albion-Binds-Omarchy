@@ -4,7 +4,8 @@ import { loadFarm, plain } from "./helpers/load-model.mjs"
 
 const Farm = loadFarm()
 
-const empty = () => ({ plots: [], cycles: [], settings: { taxRate: 0.065 } })
+const DEFAULT_SETTINGS = { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 }
+const empty = () => ({ plots: [], cycles: [], settings: { ...DEFAULT_SETTINGS } })
 const ok = (r) => { assert.equal(r.ok, true, r.error); return plain(r.farm) }
 
 function withPlot(name = "Parcela 1", id = "p1") {
@@ -166,7 +167,7 @@ test("sanitizeFarm: drops malformed plots, cycles, unknown plots/crops and secon
   }))
   assert.deepEqual(r.plots, [{ id: "p1", name: "A" }])
   assert.deepEqual(r.cycles.map((c) => c.id), ["c1", "c6"])
-  assert.deepEqual(r.settings, { taxRate: 0.04 })
+  assert.deepEqual(r.settings, { ...DEFAULT_SETTINGS, taxRate: 0.04 })
 })
 
 test("sanitizeFarm: invalid or missing tax rate falls back to the default", () => {
@@ -267,4 +268,33 @@ test("removePlot: unknown id fails in Spanish and input is not mutated", () => {
   Farm.removePlot(before, "p1")
   assert.equal(before.plots.length, 2)
   assert.equal(before.cycles.length, 3)
+})
+
+test("sanitizeFarm: planner settings keep valid values and default the invalid ones", () => {
+  const good = Farm.sanitizeFarm({ plots: [], cycles: [], settings: { taxRate: 0.04, premium: false, focus: false, seedsPerPlot: 7 } })
+  assert.deepEqual(plain(good.settings), { taxRate: 0.04, premium: false, focus: false, seedsPerPlot: 7 })
+  for (const bad of ["x", 0, -3, 2.5, 1001, null, NaN]) {
+    const s = Farm.sanitizeFarm({ plots: [], cycles: [], settings: { seedsPerPlot: bad, premium: "yes", focus: 1 } }).settings
+    assert.equal(s.seedsPerPlot, 9, String(bad))
+    assert.equal(s.premium, true)
+    assert.equal(s.focus, true)
+  }
+})
+
+test("setPlannerSettings: merges valid fields and keeps the rest", () => {
+  const farm = ok(Farm.setPlannerSettings(empty(), { premium: false, seedsPerPlot: 12 }))
+  assert.deepEqual(farm.settings, { taxRate: 0.065, premium: false, focus: true, seedsPerPlot: 12 })
+})
+
+test("setPlannerSettings: rejects bad values in Spanish", () => {
+  for (const patch of [{ seedsPerPlot: 0 }, { seedsPerPlot: 1.5 }, { seedsPerPlot: 5000 }, { seedsPerPlot: "x" }, { premium: "si" }, { focus: 1 }]) {
+    const r = Farm.setPlannerSettings(empty(), patch)
+    assert.equal(r.ok, false, JSON.stringify(patch))
+    assert.equal(typeof r.error, "string")
+  }
+})
+
+test("setTaxRate keeps the planner settings", () => {
+  const start = ok(Farm.setPlannerSettings(empty(), { focus: false }))
+  assert.deepEqual(ok(Farm.setTaxRate(start, 0.04)).settings, { taxRate: 0.04, premium: true, focus: false, seedsPerPlot: 9 })
 })

@@ -4,7 +4,9 @@
 // Pure and immutable: every operation returns new data. Ids and timestamps
 // are injected by the caller so results stay deterministic.
 //
-// Farm shape: { plots: [{ id, name }], cycles: [Cycle], settings: { taxRate } }
+// Farm shape: { plots: [{ id, name }], cycles: [Cycle],
+//               settings: { taxRate, premium, focus, seedsPerPlot } }
+// premium/focus/seedsPerPlot feed the rotation planner (Planner.js).
 // Cycle: { id, plotId, crop, plantedAt, seedsPlanted, seedPrice,
 //          harvestedAt|null, cropsHarvested, seedsReturned, cropPrice }
 
@@ -21,6 +23,11 @@ var CROPS = [
   { tier: 7, key: "corn", name: "Maíz", cropId: "T7_CORN", seedId: "T7_FARM_CORN_SEED" },
   { tier: 8, key: "pumpkin", name: "Calabaza", cropId: "T8_PUMPKIN", seedId: "T8_FARM_PUMPKIN_SEED" }
 ]
+
+var DEFAULT_PREMIUM = true
+var DEFAULT_FOCUS = true
+var DEFAULT_SEEDS_PER_PLOT = 9
+var MAX_SEEDS_PER_PLOT = 1000
 
 var MAX_PLOT_NAME = 40
 
@@ -39,6 +46,21 @@ function validTaxRate(v) {
   return typeof v === "number" && isFinite(v) && v >= 0 && v <= 1
 }
 
+function validSeedsPerPlot(v) {
+  return isNonNegativeInt(v) && v >= 1 && v <= MAX_SEEDS_PER_PLOT
+}
+
+// Valid fields are kept, everything else falls back to its default.
+function normalizeSettings(raw) {
+  var s = raw && typeof raw === "object" ? raw : {}
+  return {
+    taxRate: validTaxRate(s.taxRate) ? s.taxRate : DEFAULT_TAX_RATE,
+    premium: typeof s.premium === "boolean" ? s.premium : DEFAULT_PREMIUM,
+    focus: typeof s.focus === "boolean" ? s.focus : DEFAULT_FOCUS,
+    seedsPerPlot: validSeedsPerPlot(s.seedsPerPlot) ? s.seedsPerPlot : DEFAULT_SEEDS_PER_PLOT
+  }
+}
+
 function fail(error) {
   return { ok: false, error: error }
 }
@@ -48,7 +70,7 @@ function normalizeFarm(farm) {
   return {
     plots: Array.isArray(f.plots) ? f.plots : [],
     cycles: Array.isArray(f.cycles) ? f.cycles : [],
-    settings: { taxRate: f.settings && validTaxRate(f.settings.taxRate) ? f.settings.taxRate : DEFAULT_TAX_RATE }
+    settings: normalizeSettings(f.settings)
   }
 }
 
@@ -130,8 +152,7 @@ function sanitizeFarm(raw) {
     cycles.push(cycle)
   }
 
-  var taxRate = f.settings && validTaxRate(f.settings.taxRate) ? f.settings.taxRate : DEFAULT_TAX_RATE
-  return { plots: plots, cycles: cycles, settings: { taxRate: taxRate } }
+  return { plots: plots, cycles: cycles, settings: normalizeSettings(f.settings) }
 }
 
 // ---------- Operations ----------
@@ -215,7 +236,29 @@ function removePlot(farm, plotId) {
 function setTaxRate(farm, rate) {
   var f = normalizeFarm(farm)
   if (!validTaxRate(rate)) return fail("El impuesto debe estar entre 0 % y 100 %.")
-  return { ok: true, farm: { plots: f.plots, cycles: f.cycles, settings: { taxRate: rate } } }
+  var settings = Object.assign({}, f.settings, { taxRate: rate })
+  return { ok: true, farm: { plots: f.plots, cycles: f.cycles, settings: settings } }
+}
+
+// patch: any of { premium, focus, seedsPerPlot }; other settings are kept.
+function setPlannerSettings(farm, patch) {
+  var f = normalizeFarm(farm)
+  var p = patch && typeof patch === "object" ? patch : {}
+  var next = Object.assign({}, f.settings)
+  if (p.premium !== undefined) {
+    if (typeof p.premium !== "boolean") return fail("Premium debe ser sí o no.")
+    next.premium = p.premium
+  }
+  if (p.focus !== undefined) {
+    if (typeof p.focus !== "boolean") return fail("El riego con foco debe ser sí o no.")
+    next.focus = p.focus
+  }
+  if (p.seedsPerPlot !== undefined) {
+    if (!validSeedsPerPlot(p.seedsPerPlot))
+      return fail("Las semillas por parcela deben ser un entero entre 1 y " + MAX_SEEDS_PER_PLOT + ".")
+    next.seedsPerPlot = p.seedsPerPlot
+  }
+  return { ok: true, farm: { plots: f.plots, cycles: f.cycles, settings: next } }
 }
 
 // ---------- Profit ----------

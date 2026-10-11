@@ -6,13 +6,15 @@
 
 var DATA_VERSION = 1
 
-// Mirrors Farm.DEFAULT_TAX_RATE (modules do not import each other).
+// Mirror Farm.js defaults (modules do not import each other).
 var DEFAULT_TAX_RATE = 0.065
+var DEFAULT_SEEDS_PER_PLOT = 9
+var MAX_SEEDS_PER_PLOT = 1000
 
 function defaultData() {
   return {
     version: DATA_VERSION,
-    farm: { plots: [], cycles: [], settings: { taxRate: DEFAULT_TAX_RATE } },
+    farm: { plots: [], cycles: [], settings: settingsOr(null) },
     blackzone: { sets: [], events: [] }
   }
 }
@@ -21,9 +23,16 @@ function listOr(value) {
   return Array.isArray(value) ? value : []
 }
 
-function taxRateOr(settings) {
-  var rate = settings && typeof settings === "object" ? settings.taxRate : undefined
-  return typeof rate === "number" && isFinite(rate) && rate >= 0 && rate <= 1 ? rate : DEFAULT_TAX_RATE
+// Farm settings with every field validated; invalid ones take the default.
+function settingsOr(settings) {
+  var s = settings && typeof settings === "object" ? settings : {}
+  var seeds = s.seedsPerPlot
+  return {
+    taxRate: typeof s.taxRate === "number" && isFinite(s.taxRate) && s.taxRate >= 0 && s.taxRate <= 1 ? s.taxRate : DEFAULT_TAX_RATE,
+    premium: typeof s.premium === "boolean" ? s.premium : true,
+    focus: typeof s.focus === "boolean" ? s.focus : true,
+    seedsPerPlot: typeof seeds === "number" && Math.floor(seeds) === seeds && seeds >= 1 && seeds <= MAX_SEEDS_PER_PLOT ? seeds : DEFAULT_SEEDS_PER_PLOT
+  }
 }
 
 // Parses the data file into { ok: true, data } or { ok: false, error }.
@@ -47,7 +56,7 @@ function parseData(text, sanitizeFarm) {
   var farmData = {
     plots: listOr(farm.plots),
     cycles: listOr(farm.cycles),
-    settings: { taxRate: taxRateOr(farm.settings) }
+    settings: settingsOr(farm.settings)
   }
   if (typeof sanitizeFarm === "function") farmData = sanitizeFarm(farmData)
   return {

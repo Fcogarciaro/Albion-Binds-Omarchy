@@ -4,7 +4,7 @@ import { loadStorage, plain } from "./helpers/load-model.mjs"
 
 const Storage = loadStorage()
 
-const EMPTY = { version: 1, farm: { plots: [], cycles: [], settings: { taxRate: 0.065 } }, blackzone: { sets: [], events: [] } }
+const EMPTY = { version: 1, farm: { plots: [], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [] } }
 
 test("defaultData: versioned empty document", () => {
   assert.equal(Storage.DATA_VERSION, 1)
@@ -18,7 +18,7 @@ test("defaultData: returns a fresh object each time", () => {
 })
 
 test("parseData: round trip of a valid document", () => {
-  const doc = { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.04 } }, blackzone: { sets: [], events: [{ t: 1 }] } }
+  const doc = { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.04, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [{ t: 1 }] } }
   const r = plain(Storage.parseData(JSON.stringify(doc)))
   assert.equal(r.ok, true)
   assert.deepEqual(r.data, doc)
@@ -27,7 +27,7 @@ test("parseData: round trip of a valid document", () => {
 test("parseData: missing sections are filled with defaults", () => {
   const r = plain(Storage.parseData(JSON.stringify({ version: 1, farm: { plots: [{ id: "a" }] } })))
   assert.equal(r.ok, true)
-  assert.deepEqual(r.data, { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.065 } }, blackzone: { sets: [], events: [] } })
+  assert.deepEqual(r.data, { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [] } })
 })
 
 test("parseData: an empty object gets the full default document", () => {
@@ -53,7 +53,7 @@ test("parseData: a newer version is an error", () => {
 test("parseData: wrongly typed sections are replaced by defaults", () => {
   const r = plain(Storage.parseData(JSON.stringify({ version: 1, farm: "x", blackzone: { sets: 3, events: [1] } })))
   assert.equal(r.ok, true)
-  assert.deepEqual(r.data, { version: 1, farm: { plots: [], cycles: [], settings: { taxRate: 0.065 } }, blackzone: { sets: [], events: [1] } })
+  assert.deepEqual(r.data, { version: 1, farm: { plots: [], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [1] } })
 })
 
 test("serializeData: pretty-printed with trailing newline, parseable", () => {
@@ -78,7 +78,7 @@ test("parseData: an injected farm sanitizer cleans plots and cycles", () => {
   const sanitize = (farm) => ({ plots: farm.plots.slice(0, 1), cycles: [], settings: farm.settings })
   const text = JSON.stringify({ farm: { plots: [{ id: "a" }, { id: "b" }], cycles: [{ id: "c" }], settings: { taxRate: 0.04 } } })
   const r = plain(Storage.parseData(text, sanitize))
-  assert.deepEqual(r.data.farm, { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.04 } })
+  assert.deepEqual(r.data.farm, { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.04, premium: true, focus: true, seedsPerPlot: 9 } })
 })
 
 test("reloadOutcome: text identical to our last write is our own echo", () => {
@@ -109,4 +109,14 @@ test("reloadOutcome: honors the injected sanitizer", () => {
   const text = JSON.stringify({ farm: { plots: [{ id: "a" }] } })
   const r = plain(Storage.reloadOutcome(text, "", Storage.defaultData(), sanitize))
   assert.equal(r.action, "same")
+})
+
+test("parseData: planner settings load, and invalid ones fall back to defaults", () => {
+  const good = Storage.parseData(JSON.stringify({ farm: { settings: { premium: false, focus: false, seedsPerPlot: 6 } } }))
+  assert.deepEqual(plain(good.data.farm.settings), { taxRate: 0.065, premium: false, focus: false, seedsPerPlot: 6 })
+  for (const seedsPerPlot of ["x", 0, -1, 2.5, 5000, null]) {
+    const r = Storage.parseData(JSON.stringify({ farm: { settings: { seedsPerPlot, premium: "no", focus: 0 } } }))
+    assert.deepEqual(plain(r.data.farm.settings), { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 }, String(seedsPerPlot))
+  }
+  assert.equal(good.data.version, 1)
 })
