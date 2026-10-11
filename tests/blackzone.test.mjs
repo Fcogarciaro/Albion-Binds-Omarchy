@@ -18,7 +18,9 @@ function withSet() {
 test("SLOTS: eight gear slots plus potion and food, with Spanish labels", () => {
   const slots = plain(Bz.SLOTS)
   assert.deepEqual(slots.map((s) => s.value), ["head", "armor", "shoes", "mainhand", "offhand", "cape", "bag", "mount", "potion", "food"])
-  assert.equal(slots.find((s) => s.value === "potion").label, "Poción")
+  assert.deepEqual(slots.map((s) => s.label), [
+    "Cabeza", "Pecho", "Zapatos", "Arma principal", "Arma secundaria", "Capa", "Bolsa", "Montura", "Poción", "Comida"
+  ])
   assert.equal(slots.find((s) => s.value === "food").label, "Comida")
   assert.equal(Bz.isConsumableSlot("potion"), true)
   assert.equal(Bz.isConsumableSlot("head"), false)

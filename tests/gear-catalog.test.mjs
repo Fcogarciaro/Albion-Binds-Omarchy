@@ -66,20 +66,21 @@ test("buildCatalog: groups tiers per base, dedupes enchants, sorts", () => {
   ])
 })
 
-test("buildCatalog: consumables lose the potion grade; meals use the shared name", () => {
+test("buildCatalog: consumables keep the official name of every tier", () => {
   const catalog = buildCatalog([
     item("T2_POTION_HEAL", "Poción de curación menor"),
     item("T4_POTION_HEAL@1", "Poción de curación"),
     item("T6_POTION_HEAL", "Poción de curación mayor"),
-    item("T3_MEAL_SOUP", "Sopa de zanahoria"),
-    item("T5_MEAL_SOUP", "Sopa de trigo"),
+    item("T3_MEAL_SOUP", "Sopa de trigo"),
+    item("T5_MEAL_SOUP", "Sopa de col"),
     item("T4_MEAL_ROAST", "Pollo asado"),
     item("T6_MEAL_ROAST", "Cerdo asado")
   ])
   assert.deepEqual(catalog, [
-    { base: "MEAL_ROAST", slot: "food", nameEs: "… asado", tiers: [4, 6] },
-    { base: "MEAL_SOUP", slot: "food", nameEs: "Sopa", tiers: [3, 5] },
-    { base: "POTION_HEAL", slot: "potion", nameEs: "Poción de curación", tiers: [2, 4, 6] }
+    { base: "MEAL_ROAST", slot: "food", nameEs: "Pollo asado", tiers: [4, 6], names: { 4: "Pollo asado", 6: "Cerdo asado" } },
+    { base: "MEAL_SOUP", slot: "food", nameEs: "Sopa de trigo", tiers: [3, 5], names: { 3: "Sopa de trigo", 5: "Sopa de col" } },
+    { base: "POTION_HEAL", slot: "potion", nameEs: "Poción de curación", tiers: [2, 4, 6],
+      names: { 2: "Poción de curación menor", 4: "Poción de curación", 6: "Poción de curación mayor" } }
   ])
 })
 

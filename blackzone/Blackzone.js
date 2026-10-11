@@ -14,11 +14,11 @@
 // Operations return { ok: true, blackzone } or { ok: false, error }.
 
 var SLOTS = [
-  { value: "head", label: "Casco" },
-  { value: "armor", label: "Armadura" },
-  { value: "shoes", label: "Botas" },
-  { value: "mainhand", label: "Arma" },
-  { value: "offhand", label: "Mano izquierda" },
+  { value: "head", label: "Cabeza" },
+  { value: "armor", label: "Pecho" },
+  { value: "shoes", label: "Zapatos" },
+  { value: "mainhand", label: "Arma principal" },
+  { value: "offhand", label: "Arma secundaria" },
   { value: "cape", label: "Capa" },
   { value: "bag", label: "Bolsa" },
   { value: "mount", label: "Montura" },

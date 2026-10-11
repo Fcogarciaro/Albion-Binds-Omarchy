@@ -88,9 +88,11 @@ Column {
     return null
   }
 
-  function pieceName(base) {
+  // Consumables carry the game's own name for each tier.
+  function pieceName(base, tier) {
     var entry = catalogIndex[base]
-    return entry ? entry.nameEs : base
+    if (!entry) return base
+    return entry.names && entry.names[tier] ? entry.names[tier] : entry.nameEs
   }
 
   function qualityName(q) {
@@ -99,7 +101,7 @@ Column {
   }
 
   function pieceLabel(piece) {
-    var text = pieceName(piece.base) + " T" + piece.tier + "." + piece.enchant
+    var text = pieceName(piece.base, piece.tier) + " T" + piece.tier + "." + piece.enchant
     if (Bz.isConsumableSlot(piece.slot)) return piece.quantity > 1 ? text + " ×" + piece.quantity : text
     return text + " · " + qualityName(piece.quality)
   }
@@ -567,7 +569,7 @@ Column {
               Dropdown {
                 id: pieceTierDropdown
                 width: (parent.width - parent.spacing * (view.pieceIsConsumable ? 1 : 2)) / (view.pieceIsConsumable ? 2 : 3)
-                label: "Tier"
+                label: "Nivel"
                 value: String(view.pieceTier)
                 options: view.tierOptions()
                 foreground: owner.bar.foreground
@@ -578,7 +580,7 @@ Column {
               Dropdown {
                 id: pieceEnchantDropdown
                 width: pieceTierDropdown.width
-                label: "Encant."
+                label: "Encantamiento"
                 value: String(view.pieceEnchant)
                 options: view.enchantOptions
                 foreground: owner.bar.foreground

@@ -45,38 +45,6 @@ export function stripTierAdjective(name, tier) {
 
 const POTION_GRADE = /\s+(menor|mayor)$/i
 
-function commonPrefix(names) {
-  const split = names.map((n) => n.split(" "))
-  const out = []
-  for (let i = 0; i < split[0].length; i++) {
-    if (!split.every((w) => w[i] === split[0][i])) break
-    out.push(split[0][i])
-  }
-  while (out.length && /^(de|del|con)$/i.test(out[out.length - 1])) out.pop()
-  return out.join(" ")
-}
-
-function commonSuffix(names) {
-  const split = names.map((n) => n.split(" ").reverse())
-  const out = []
-  for (let i = 0; i < split[0].length; i++) {
-    if (!split.every((w) => w[i] === split[0][i])) break
-    out.push(split[0][i])
-  }
-  return out.reverse().join(" ")
-}
-
-// Consumable names change with the tier (ingredient or potion grade): strip
-// the grade, then keep what every tier shares.
-function consumableName(slot, names) {
-  const cleaned = [...new Set(names.map((n) => n.replace(POTION_GRADE, "")))]
-  if (cleaned.length === 1) return cleaned[0]
-  const prefix = commonPrefix(cleaned)
-  if (prefix) return prefix
-  const suffix = commonSuffix(cleaned)
-  return suffix ? "… " + suffix : cleaned[0]
-}
-
 function spanishName(entry) {
   const names = entry.LocalizedNames
   if (!names || typeof names !== "object") return null
@@ -102,10 +70,15 @@ export function buildCatalog(items) {
   const catalog = []
   for (const [base, { slot, names }] of bases) {
     const tiers = [...names.keys()].sort((a, b) => a - b)
-    const nameEs = slot === "potion" || slot === "food"
-      ? consumableName(slot, tiers.map((t) => names.get(t)))
-      : stripTierAdjective(names.get(tiers[0]), tiers[0])
-    catalog.push({ base, slot, nameEs, tiers })
+    if (slot === "potion" || slot === "food") {
+      // The game names consumables per tier ("Sopa de trigo", "Pollo asado"):
+      // keep every official name and use the lowest tier's as the list label.
+      const perTier = {}
+      for (const t of tiers) perTier[t] = names.get(t)
+      catalog.push({ base, slot, nameEs: names.get(tiers[0]).replace(POTION_GRADE, ""), tiers, names: perTier })
+    } else {
+      catalog.push({ base, slot, nameEs: stripTierAdjective(names.get(tiers[0]), tiers[0]), tiers })
+    }
   }
   return catalog.sort((a, b) => (a.base < b.base ? -1 : a.base > b.base ? 1 : 0))
 }
