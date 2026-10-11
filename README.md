@@ -151,6 +151,8 @@ Cubre los cultivos de **T1 a T8** (zanahoria, frijol, trigo, nabo, repollo, papa
 
 Cada parcela puede tener **un solo ciclo abierto** a la vez. Si se perdió la cosecha, anota 0 cultivos.
 
+Si te equivocas, puedes borrar: **Cancelar siembra** (ciclo abierto), **Eliminar** en una fila del historial, o **Eliminar parcela** (borra también sus ciclos). Pide confirmación: el primer toque cambia el botón a **¿Seguro?** y el segundo borra.
+
 ### Cómo se calcula la ganancia
 
 ```

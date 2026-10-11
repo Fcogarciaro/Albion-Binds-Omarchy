@@ -220,3 +220,51 @@ test("closedCycles: newest harvest first, optional limit", () => {
   assert.deepEqual(plain(Farm.closedCycles(farm)).map((c) => c.id), ["c2", "c1", "c0"])
   assert.deepEqual(plain(Farm.closedCycles(farm, 2)).map((c) => c.id), ["c2", "c1"])
 })
+
+function withHistory() {
+  let farm = withPlot("A", "p1")
+  farm = ok(Farm.addPlot(farm, "B", "p2"))
+  farm = ok(Farm.plantCycle(farm, { plotId: "p1", crop: "turnip", seedsPlanted: 10, seedPrice: 100, now: 1, id: "c1" }))
+  farm = ok(Farm.harvestCycle(farm, { cycleId: "c1", cropsHarvested: 10, seedsReturned: 10, cropPrice: 1000, now: 2 }))
+  farm = ok(Farm.plantCycle(farm, { plotId: "p1", crop: "turnip", seedsPlanted: 10, seedPrice: 100, now: 3, id: "c2" }))
+  farm = ok(Farm.plantCycle(farm, { plotId: "p2", crop: "potato", seedsPlanted: 5, seedPrice: 100, now: 4, id: "c3" }))
+  return farm
+}
+
+test("removeCycle: drops an open cycle (cancel planting) and frees the plot", () => {
+  const farm = ok(Farm.removeCycle(withHistory(), "c2"))
+  assert.deepEqual(farm.cycles.map((c) => c.id), ["c1", "c3"])
+  assert.equal(Farm.openCycle(farm, "p1"), null)
+  assert.deepEqual(farm.plots.map((p) => p.id), ["p1", "p2"])
+})
+
+test("removeCycle: drops a closed cycle from totals", () => {
+  const farm = ok(Farm.removeCycle(withHistory(), "c1"))
+  assert.deepEqual(plain(Farm.totals(farm, 0)).overall, { cycles: 0, profit: 0 })
+})
+
+test("removeCycle: unknown id fails in Spanish and input is not mutated", () => {
+  const before = withHistory()
+  const r = Farm.removeCycle(before, "zzz")
+  assert.equal(r.ok, false)
+  assert.match(r.error, /ciclo/i)
+  Farm.removeCycle(before, "c1")
+  assert.equal(before.cycles.length, 3)
+})
+
+test("removePlot: removes the plot and all of its cycles, keeps the rest", () => {
+  const farm = ok(Farm.removePlot(withHistory(), "p1"))
+  assert.deepEqual(farm.plots, [{ id: "p2", name: "B" }])
+  assert.deepEqual(farm.cycles.map((c) => c.id), ["c3"])
+  assert.equal(farm.settings.taxRate, 0.065)
+})
+
+test("removePlot: unknown id fails in Spanish and input is not mutated", () => {
+  const before = withHistory()
+  const r = Farm.removePlot(before, "zzz")
+  assert.equal(r.ok, false)
+  assert.match(r.error, /parcela/i)
+  Farm.removePlot(before, "p1")
+  assert.equal(before.plots.length, 2)
+  assert.equal(before.cycles.length, 3)
+})

@@ -191,6 +191,27 @@ function harvestCycle(farm, input) {
   return { ok: true, farm: withCycles(f, cycles) }
 }
 
+// Drops one cycle (open = cancel planting, closed = remove from history and totals).
+function removeCycle(farm, cycleId) {
+  var f = normalizeFarm(farm)
+  if (findCycle(f, cycleId) < 0) return fail("No encontré ese ciclo.")
+  return { ok: true, farm: withCycles(f, f.cycles.filter(function(c) { return c.id !== cycleId })) }
+}
+
+// Drops a plot together with all of its cycles.
+function removePlot(farm, plotId) {
+  var f = normalizeFarm(farm)
+  if (!f.plots.some(function(p) { return p.id === plotId })) return fail("No encontré esa parcela.")
+  return {
+    ok: true,
+    farm: {
+      plots: f.plots.filter(function(p) { return p.id !== plotId }),
+      cycles: f.cycles.filter(function(c) { return c.plotId !== plotId }),
+      settings: f.settings
+    }
+  }
+}
+
 function setTaxRate(farm, rate) {
   var f = normalizeFarm(farm)
   if (!validTaxRate(rate)) return fail("El impuesto debe estar entre 0 % y 100 %.")

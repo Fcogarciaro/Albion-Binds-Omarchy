@@ -28,6 +28,8 @@ Column {
   property string errorText: ""
   property string priceText: ""
   property string priceTarget: ""
+  // Delete control awaiting its second tap ("plot:<id>", "open:<id>", "hist:<id>").
+  property string confirmKey: ""
   readonly property var activeCycle: activePlotId !== "" ? Farm.openCycle(farm, activePlotId) : null
   readonly property bool editing: plotNameField.activeFocus || seedsField.activeFocus || seedPriceField.activeFocus
     || harvestedField.activeFocus || returnedField.activeFocus || cropPriceField.activeFocus
@@ -69,7 +71,31 @@ Column {
     return true
   }
 
+  function deleteLabel(key, idle) { return confirmKey === key ? "¿Seguro?" : idle }
+
+  // Two-tap delete: the first tap arms the control, the second one runs it.
+  function askDelete(key, action) {
+    if (confirmKey !== key) {
+      confirmKey = key
+      confirmTimer.restart()
+      return
+    }
+    confirmKey = ""
+    confirmTimer.stop()
+    action()
+  }
+
+  function removePlot(plotId) {
+    if (commit(Farm.removePlot(farm, plotId)) && activePlotId === plotId) closeForm()
+  }
+
+  function removeCycle(cycleId) {
+    var current = activeCycle
+    if (commit(Farm.removeCycle(farm, cycleId)) && current && current.id === cycleId) closeForm()
+  }
+
   function openForm(plotId, mode) {
+    confirmKey = ""
     activePlotId = plotId
     activeMode = mode
     errorText = ""
@@ -82,6 +108,7 @@ Column {
   }
 
   function closeForm() {
+    confirmKey = ""
     activePlotId = ""
     errorText = ""
     priceText = ""
@@ -161,6 +188,13 @@ Column {
   // Keeps the field in sync when the data file finishes loading.
   onTaxRateChanged: if (!taxField.activeFocus) taxField.text = Farm.formatPercent(taxRate)
   Component.onCompleted: taxField.text = Farm.formatPercent(taxRate)
+
+  // An armed delete control disarms itself if the second tap never comes.
+  Timer {
+    id: confirmTimer
+    interval: 4000
+    onTriggered: view.confirmKey = ""
+  }
 
   Process {
     id: priceProc
@@ -270,6 +304,29 @@ Column {
             font.pixelSize: Style.font.caption
             elide: Text.ElideRight
             width: parent.width
+          }
+
+          Row {
+            spacing: Style.space(6)
+
+            Button {
+              visible: plotRow.cycle !== null
+              text: view.deleteLabel("open:" + (plotRow.cycle ? plotRow.cycle.id : ""), "Cancelar siembra")
+              foreground: owner.bar.foreground
+              fontFamily: owner.bar.fontFamily
+              fontSize: Style.font.caption
+              bordered: true
+              onClicked: view.askDelete("open:" + plotRow.cycle.id, function() { view.removeCycle(plotRow.cycle.id) })
+            }
+
+            Button {
+              text: view.deleteLabel("plot:" + plotRow.modelData.id, "Eliminar parcela")
+              foreground: owner.bar.foreground
+              fontFamily: owner.bar.fontFamily
+              fontSize: Style.font.caption
+              bordered: true
+              onClicked: view.askDelete("plot:" + plotRow.modelData.id, function() { view.removePlot(plotRow.modelData.id) })
+            }
           }
         }
 
@@ -523,7 +580,7 @@ Column {
         required property var modelData
         readonly property int profit: Farm.cycleProfit(modelData, view.taxRate)
         width: parent.width
-        implicitHeight: Math.max(historyLabel.implicitHeight, historyProfit.implicitHeight)
+        implicitHeight: Math.max(historyLabel.implicitHeight, historyProfit.implicitHeight, historyDelete.implicitHeight)
 
         Text {
           id: historyLabel
@@ -542,7 +599,8 @@ Column {
 
         Text {
           id: historyProfit
-          anchors.right: parent.right
+          anchors.right: historyDelete.left
+          anchors.rightMargin: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
           text: view.signed(historyRow.profit)
@@ -550,6 +608,18 @@ Column {
           font.family: owner.bar.fontFamily
           font.pixelSize: Style.font.bodySmall
           font.bold: true
+        }
+
+        Button {
+          id: historyDelete
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          text: view.deleteLabel("hist:" + historyRow.modelData.id, "Eliminar")
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          fontSize: Style.font.caption
+          bordered: true
+          onClicked: view.askDelete("hist:" + historyRow.modelData.id, function() { view.removeCycle(historyRow.modelData.id) })
         }
       }
     }
