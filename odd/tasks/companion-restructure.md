@@ -41,7 +41,7 @@ The exact split may be adjusted to what QML imports allow. Relative `import "bin
 
 ## Tasks
 - [x] T1: Move `Model.js` into feature modules (`binds/`, `backup/`) with no behavior change. Update the test loader and keep the suite green. Route: delegated writer.
-- [ ] T2: Rename the id, the Lua module and the marker. Add legacy cleanup to `apply.sh`, test-first. Route: same writer.
+- [x] T2: Rename the id, the Lua module and the marker. Add legacy cleanup to `apply.sh`, test-first. Route: same writer.
 - [ ] T3: Backup: new app id and path, accept legacy `albion-binds` files, fall back to `~/albion-binds.json` (test-first for the pure parts). Route: same writer.
 - [ ] T4: `shared/Storage.js` skeleton (default doc, version, validate), test-first, plus a FileView-backed load/save in QML. Route: same writer.
 - [ ] T5: Tabbed bar panel (Atajos, Cultivos, Zona negra) and `BindsView.qml` extraction. Research the `panel` kind and either add the window skeleton or document why it is deferred. Route: same writer.
@@ -57,9 +57,14 @@ The exact split may be adjusted to what QML imports allow. Relative `import "bin
 
 ## Progress / evidence
 
-### T1 (delegated writer, pure move)
+### T1 (delegated writer, pure move) - d71663c
 - Model.js -> binds/Binds.js; export/import -> backup/Backup.js; apply.sh -> binds/apply.sh; tests split (binds/backup), loader generalized (`loadModule`).
 - No `.import` of one JS from another is used by any stock plugin (rg `^\.import` over /usr/share/omarchy/shell: no hits), so modules stay independent; `sanitizeBinds` is injected into Backup functions.
 - Verified: subdirectory JS import `import "../X.js" as X` (plugins/notifications/components/NotificationCard.qml:10), subdirectory components `import "components"` (plugins/notifications/Service.qml:11).
 - Evidence: `npm test` 45/45 pass before and after.
+
+### T2 (same writer)
+- RED: apply tests renamed + 3 legacy-cleanup tests, manifest test, Lua header test: 6 + 2 failing. GREEN: 50/50.
+- apply.sh: target albion-companion.lua, new marker/comment; removes exact legacy loader line (grep -vxF), legacy comment (prefix) and ~/.config/hypr/albion-binds.lua; counts as a change (reload). `bash -n` ok.
+- manifest id/name/version 2.0.0, Panel moduleName/titles, Lua header renamed.
 

@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# Escribe ~/.config/hypr/albion-binds.lua con el contenido recibido en $1,
+# Escribe ~/.config/hypr/albion-companion.lua con el contenido recibido en $1,
 # se asegura de que hyprland.lua lo cargue y recarga Hyprland solo si algo cambió.
 set -euo pipefail
 
 content="$1"
 hypr_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
-target="$hypr_dir/albion-binds.lua"
+target="$hypr_dir/albion-companion.lua"
 main="$hypr_dir/hyprland.lua"
-marker='pcall(require, "hypr.albion-binds")'
+marker='pcall(require, "hypr.albion-companion")'
+legacy_marker='pcall(require, "hypr.albion-binds")'
+legacy_comment='-- Albion Binds (plugin fcogarcia.albion-binds)'
+legacy_target="$hypr_dir/albion-binds.lua"
 changed=0
 
 if ! printf '%s' "$content" | cmp -s - "$target" 2>/dev/null; then
@@ -25,8 +28,22 @@ if ! printf '%s' "$content" | cmp -s - "$target" 2>/dev/null; then
   changed=1
 fi
 
+# Cleanup of the pre-rename plugin (fcogarcia.albion-binds): drop its loader
+# line and comment (exact lines only) and its generated file.
+if [[ -f $main ]] && { grep -qxF "$legacy_marker" "$main" || grep -q "^$legacy_comment" "$main"; }; then
+  tmp="$(mktemp "$main.XXXXXX")"
+  grep -vxF "$legacy_marker" "$main" | grep -v "^$legacy_comment" >"$tmp" || true
+  chmod --reference="$main" "$tmp" 2>/dev/null || true
+  mv "$tmp" "$main"
+  changed=1
+fi
+if [[ -f $legacy_target ]]; then
+  rm -f "$legacy_target"
+  changed=1
+fi
+
 if [[ -f $main ]] && ! grep -qF "$marker" "$main"; then
-  printf '\n-- Albion Binds (plugin fcogarcia.albion-binds): atajos solo para Albion Online.\n%s\n' "$marker" >>"$main"
+  printf '\n-- Albion Companion (plugin fcogarcia.albion-companion): atajos solo para Albion Online.\n%s\n' "$marker" >>"$main"
   changed=1
 fi
 

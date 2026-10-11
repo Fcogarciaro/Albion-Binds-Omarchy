@@ -7,7 +7,7 @@ import { join } from "node:path"
 
 const APPLY = new URL("../binds/apply.sh", import.meta.url).pathname
 const hasLuac = spawnSync("luac", ["-v"], { encoding: "utf8" }).error === undefined
-const MARKER = 'pcall(require, "hypr.albion-binds")'
+const MARKER = 'pcall(require, "hypr.albion-companion")'
 const VALID = "local x = 1\n"
 
 describe("apply.sh", () => {
@@ -44,7 +44,7 @@ describe("apply.sh", () => {
   test("writes the target, appends the marker once and reloads once", () => {
     const res = apply(VALID)
     assert.equal(res.status, 0, res.stderr)
-    assert.equal(readFileSync(join(hyprDir, "albion-binds.lua"), "utf8"), VALID)
+    assert.equal(readFileSync(join(hyprDir, "albion-companion.lua"), "utf8"), VALID)
     const main = readFileSync(join(hyprDir, "hyprland.lua"), "utf8")
     assert.equal(main.split(MARKER).length - 1, 1)
     assert.equal(reloads().length, 1)
@@ -64,15 +64,54 @@ describe("apply.sh", () => {
     const res = apply("local = =\n")
     assert.equal(res.status, 1)
     assert.notEqual(res.stderr.trim(), "")
-    assert.equal(readFileSync(join(hyprDir, "albion-binds.lua"), "utf8"), VALID)
+    assert.equal(readFileSync(join(hyprDir, "albion-companion.lua"), "utf8"), VALID)
     assert.equal(reloads().length, 1)
-    assert.deepEqual(readdirSync(hyprDir).sort(), ["albion-binds.lua", "hyprland.lua"])
+    assert.deepEqual(readdirSync(hyprDir).sort(), ["albion-companion.lua", "hyprland.lua"])
   })
 
   test("invalid Lua never creates a missing target", { skip: !hasLuac && "luac not on PATH" }, () => {
     const res = apply("local = =\n")
     assert.equal(res.status, 1)
-    assert.equal(existsSync(join(hyprDir, "albion-binds.lua")), false)
+    assert.equal(existsSync(join(hyprDir, "albion-companion.lua")), false)
     assert.equal(reloads().length, 0)
+  })
+
+  const LEGACY_LINE = 'pcall(require, "hypr.albion-binds")'
+  const LEGACY_COMMENT = "-- Albion Binds (plugin fcogarcia.albion-binds): atajos solo para Albion Online."
+
+  test("legacy loader line, comment and file are removed; everything else is preserved", () => {
+    const keep = '-- my albion notes\nhl.bind("SUPER+A", albion_thing)  -- albion\nlocal albion_binds_unrelated = 1\n'
+    writeFileSync(join(hyprDir, "hyprland.lua"), `-- user config\n${keep}\n${LEGACY_COMMENT}\n${LEGACY_LINE}\n`)
+    writeFileSync(join(hyprDir, "albion-binds.lua"), "old\n")
+    const res = apply(VALID)
+    assert.equal(res.status, 0, res.stderr)
+    const main = readFileSync(join(hyprDir, "hyprland.lua"), "utf8")
+    assert.equal(main.includes(LEGACY_LINE), false)
+    assert.equal(main.includes("Albion Binds (plugin"), false)
+    assert.ok(main.includes(`-- user config\n${keep}`))
+    assert.equal(main.split(MARKER).length - 1, 1)
+    assert.match(main, /-- Albion Companion \(plugin fcogarcia\.albion-companion\)/)
+    assert.equal(existsSync(join(hyprDir, "albion-binds.lua")), false)
+    assert.equal(readFileSync(join(hyprDir, "albion-companion.lua"), "utf8"), VALID)
+    assert.equal(reloads().length, 1)
+  })
+
+  test("legacy cleanup alone (target already current) still reloads once", () => {
+    apply(VALID)
+    const main = join(hyprDir, "hyprland.lua")
+    writeFileSync(main, readFileSync(main, "utf8") + `\n${LEGACY_LINE}\n`)
+    const res = apply(VALID)
+    assert.equal(res.status, 0, res.stderr)
+    assert.equal(readFileSync(main, "utf8").includes(LEGACY_LINE), false)
+    assert.equal(reloads().length, 2)
+  })
+
+  test("without legacy leftovers the user's config is only appended to", () => {
+    const original = "-- user config\n-- albion is fun\n"
+    writeFileSync(join(hyprDir, "hyprland.lua"), original)
+    apply(VALID)
+    const main = readFileSync(join(hyprDir, "hyprland.lua"), "utf8")
+    assert.ok(main.startsWith(original))
+    assert.equal(existsSync(join(hyprDir, "albion-binds.lua")), false)
   })
 })

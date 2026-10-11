@@ -8,7 +8,7 @@ import "backup/Backup.js" as Backup
 
 Panel {
   id: root
-  moduleName: "fcogarcia.albion-binds"
+  moduleName: "fcogarcia.albion-companion"
 
   readonly property string swordIcon: String.fromCodePoint(0xF04E5)
   readonly property string trashIcon: String.fromCodePoint(0xF01B4)
@@ -150,8 +150,8 @@ Panel {
     text: root.swordIcon
     opacity: root.masterEnabled && root.activeCount > 0 ? 1 : 0.4
     tooltipText: root.masterEnabled
-      ? "Albion Binds: " + root.activeCount + " atajo(s) activo(s)"
-      : "Albion Binds: en pausa"
+      ? "Albion Companion: " + root.activeCount + " atajo(s) activo(s)"
+      : "Albion Companion: en pausa"
     onPressed: function(b) {
       if (b === Qt.RightButton) root.save({ enabled: !root.masterEnabled })
       else root.toggle()
@@ -208,7 +208,7 @@ Panel {
             spacing: Style.space(2)
 
             Text {
-              text: "Albion Binds"
+              text: "Albion Companion"
               color: root.bar.foreground
               font.family: root.bar.fontFamily
               font.pixelSize: Style.font.title
