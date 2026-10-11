@@ -6,7 +6,7 @@ Plugin para la barra de **Omarchy** con herramientas para Albion Online. Hoy inc
 Cuando no estás en el juego, los botones siguen haciendo lo de siempre
 (por ejemplo, el botón lateral sigue siendo "Atrás" en el navegador).
 
-El panel tiene tres pestañas:
+El panel tiene tres pestañas (y Cultivos y Zona negra también se abren en una [ventana grande](#-ventana-grande)):
 
 - **Atajos**: lo que describe este documento.
 - **Cultivos**: bitácora de ganancias de tu isla (ver [Cultivos](#-cultivos)).
@@ -266,6 +266,50 @@ ganancia = suma del botín − suma de las muertes − suma de los gastos
 - Pide confirmación: el primer toque cambia el botón a **¿Seguro?** y el segundo borra.
 
 Los datos se guardan en el mismo `data.json` que Cultivos (ver [Dónde se guardan los datos](#dónde-se-guardan-los-datos)) y se sincronizan igual.
+
+---
+
+## 🪟 Ventana grande
+
+El panel de la barra es angosto. Para anotar con más espacio hay una **ventana grande** (unos 1000×700, centrada en la pantalla) con las pestañas **Cultivos** y **Zona negra**. Los formularios quedan a la izquierda y el resumen y el historial a la derecha. Es la misma información que el panel: lo que anotes en uno aparece en el otro.
+
+### Cómo abrirla
+
+1. Abre el panel (clic izquierdo en la espada ⚔️).
+2. Entra a la pestaña **Cultivos** o **Zona negra**.
+3. Presiona **Abrir ventana grande**. El panel se cierra y se abre la ventana.
+
+Para cerrarla: tecla **`Esc`**, el botón **Cerrar**, o un clic fuera de la ventana. Con **`Tab`** cambias entre Cultivos y Zona negra. Si estás escribiendo en un campo, `Esc` primero te saca del campo y el siguiente `Esc` cierra la ventana.
+
+> **Atajos** (los botones del mouse) se queda solo en el panel de la barra. La ventana grande no los muestra.
+
+### Abrirla con una tecla (opcional)
+
+Puedes asignarle una combinación de teclas en Hyprland. En Omarchy tus atajos personales van en el archivo `~/.config/hypr/bindings.lua`. Ábrelo y agrega estas líneas al final (cambia `SUPER + ALT + A` por la combinación que prefieras, una que no uses ya):
+
+```lua
+o.bind(
+  "SUPER + ALT + A",
+  "Albion Companion",
+  "omarchy-shell shell toggle fcogarcia.albion-companion '{}'"
+)
+```
+
+Guarda el archivo; Hyprland suele recargar la configuración solo (si no, ejecuta `hyprctl reload`). La misma tecla abre y cierra la ventana. Para ver todas tus combinaciones y comprobar que no se repite, ejecuta `omarchy menu keybindings --print`.
+
+### Si tocas el panel y la ventana a la vez
+
+Los dos leen y guardan el mismo archivo (`~/.local/share/albion-companion/data.json`) y se actualizan entre sí al instante. Si anotas algo en el panel y en la ventana **en el mismo instante** (cosa que en la práctica no pasa, porque son dos manos en dos lugares), gana lo último que se guardó. Usa uno a la vez y no pierdes nada.
+
+### Si la ventana no se abre después de actualizar
+
+Si actualizaste el plugin (o lo instalaste) y el botón o la tecla no abren nada, reinicia el shell de Omarchy para que registre la ventana nueva:
+
+```sh
+omarchy restart shell
+```
+
+Luego prueba otra vez.
 
 ---
 
