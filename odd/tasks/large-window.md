@@ -30,8 +30,8 @@ Give the user a large floating window for data entry, besides the ~380px bar pan
 
 ## Tasks
 - [x] W1: Manifest kinds and `Window.qml` shell (wifiqr pattern): tabs, its own DataStore, open/close, Esc. Button in the bar panel. Route: delegated writer.
-- [ ] W2: `wide` two-column layout for FarmView and BlackzoneView inside the window, with the bar panel unchanged. Route: same writer.
-- [ ] W3: README covering the window, the button, the optional Hyprland bind, and the need to run `omarchy restart shell` after updating if the window does not open. Route: same writer.
+- [x] W2: `wide` two-column layout for FarmView and BlackzoneView inside the window, with the bar panel unchanged. Route: same writer.
+- [x] W3: README covering the window, the button, the optional Hyprland bind, and the need to run `omarchy restart shell` after updating if the window does not open. Route: same writer.
 
 ## Delivery
 `single-pr` on branch `feat/large-window`. RDD is off (global).
@@ -49,3 +49,16 @@ Give the user a large floating window for data entry, besides the ~380px bar pan
 - qmllint (`-I ~/.cache/qsl`): 0 errors. Window.qml: missing-property + uncreatable-type (PanelWindow). Panel.qml: missing-property 6 -> 11, from the new `bar.run`/Style lines (same category). Views unchanged (129/39 and 166/43). No new categories.
 - Delegate-id check (/tmp/delegate_ids.py over Panel, Window, both views, binds): 0.
 - Smoke-load: scratch `qs -p` config in `~/.cache/qsl-smoke` (copies of Commons/Ui + plugin files, generated qmldirs); Window.qml and Panel.qml load Ready, views instantiate, tab switch works, no warnings. The window was not opened (no overlay on the live session).
+
+### W2 (writer) - ef3f11b
+- Both views: a hidden `Row { lanes }` (leftLane / rightLane Columns) is declared first; each top-level section sets `parent: view.wide ? leftLane|rightLane : view`. With `wide: false` every section stays a direct child of the root Column, so the bar layout is unchanged.
+  - Farm: left = Parcelas, Planificador, Plantar/Cosechar form, error text, Impuesto; right = Resumen, Historial.
+  - Zona negra: left = Sets, Muerte, Botín, Gasto, error text; right = Resumen, Historial. The Sets separator is hidden when wide (first in its lane).
+- No ids moved and no behavior code touched (quick entry, two-tap delete, focus, `editing` unchanged).
+- Check: a scratch harness instantiated both views with a real DataStore. Narrow heights are identical to the pre-change views (Cultivos 267, Zona negra 355); wide lays out shorter (217 / 252) in a 940px lane pair.
+- No pure logic, so no new tests. `npm test` 185/185. qmllint 0 errors, counts identical to before (farm 129 unqualified / 39 missing-property; blackzone 166 / 43). Delegate-id check: 0. Window.qml smoke-load (scratch `qs -p`) still clean.
+
+### W3 (writer) - edfed32
+- README: new section "🪟 Ventana grande" (before the Nextcloud section) plus a pointer in the intro. Covers: button (Cultivos/Zona negra tabs), Esc / Cerrar / click-outside / Tab, Atajos stays in the bar panel, optional bind, last-write-wins note, and `omarchy restart shell` if the window does not open after updating.
+- Bind: Omarchy keeps personal binds in `~/.config/hypr/bindings.lua` (template header and an existing `o.bind(..., "omarchy-shell shell toggle mirador '{}'")` entry there). Line: `o.bind("SUPER + ALT + A", "Albion Companion", "omarchy-shell shell toggle fcogarcia.albion-companion '{}'")`.
+- Docs only; `npm test` 185/185.
