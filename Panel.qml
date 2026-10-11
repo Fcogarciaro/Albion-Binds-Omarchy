@@ -21,6 +21,7 @@ Panel {
   property string pendingLua: ""
   property string backupPath: Quickshell.env("HOME") + "/albion-binds.json"
   property string backupText: ""
+  property bool backupFailed: false
   property string backupAction: ""
   readonly property bool editing: customTriggerField.activeFocus || comboField.activeFocus || dropdown.popupOpen
 
@@ -73,26 +74,29 @@ Panel {
     save({ binds: next })
   }
 
+  function setBackupStatus(text, failed) {
+    backupText = text
+    backupFailed = failed
+  }
+
   function exportBackup() {
-    errorText = ""
-    backupText = ""
+    setBackupStatus("", false)
     backupAction = "export"
     backupFile.setText(Model.exportBinds(root.binds, root.masterEnabled))
   }
 
   function importBackup() {
-    errorText = ""
-    backupText = ""
+    setBackupStatus("", false)
     backupAction = "import"
     backupFile.reload()
   }
 
   function finishImport(text) {
     var result = Model.parseImport(text)
-    if (!result.ok) { errorText = result.error; return }
+    if (!result.ok) { setBackupStatus(result.error, true); return }
     save({ binds: result.binds, enabled: result.enabled })
-    backupText = "Importados " + result.binds.length + " atajos."
-      + (result.skipped > 0 ? " (" + result.skipped + " ignorados)" : "")
+    setBackupStatus("Importados " + result.binds.length + " atajos."
+      + (result.skipped > 0 ? " (" + result.skipped + " ignorados)" : ""), false)
   }
 
   Component.onCompleted: applyToHyprland()
@@ -112,17 +116,17 @@ Panel {
     onLoadFailed: function(error) {
       if (root.backupAction !== "import") return
       root.backupAction = ""
-      root.errorText = "No encontré ~/albion-binds.json."
+      root.setBackupStatus("No encontré ~/albion-binds.json.", true)
     }
     onSaved: {
       if (root.backupAction !== "export") return
       root.backupAction = ""
-      root.backupText = "Exportado a ~/albion-binds.json (" + root.binds.length + " atajos)."
+      root.setBackupStatus("Exportado a ~/albion-binds.json (" + root.binds.length + " atajos).", false)
     }
     onSaveFailed: function(error) {
       if (root.backupAction !== "export") return
       root.backupAction = ""
-      root.errorText = "No pude guardar ~/albion-binds.json."
+      root.setBackupStatus("No pude guardar ~/albion-binds.json.", true)
     }
   }
 
@@ -448,8 +452,8 @@ Panel {
             width: parent.width
             textFormat: Text.PlainText
             text: root.backupText
-            color: root.bar.foreground
-            opacity: 0.7
+            color: root.backupFailed ? Color.urgent : root.bar.foreground
+            opacity: root.backupFailed ? 1 : 0.7
             font.family: root.bar.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.WordWrap
