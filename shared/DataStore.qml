@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "Storage.js" as Store
+import "../farm/Farm.js" as Farm
 
 // Loads ~/.local/share/albion-companion/data.json on start and saves it on
 // demand. The file is never created until saveData() is called.
@@ -34,7 +35,7 @@ Item {
     atomicWrites: true
     printErrors: false
     onLoaded: {
-      var result = Store.parseData(text())
+      var result = Store.parseData(text(), Farm.sanitizeFarm)
       if (result.ok) {
         root.document = result.data
         root.error = ""

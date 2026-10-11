@@ -6,10 +6,13 @@
 
 var DATA_VERSION = 1
 
+// Mirrors Farm.DEFAULT_TAX_RATE (modules do not import each other).
+var DEFAULT_TAX_RATE = 0.065
+
 function defaultData() {
   return {
     version: DATA_VERSION,
-    farm: { plots: [], cycles: [] },
+    farm: { plots: [], cycles: [], settings: { taxRate: DEFAULT_TAX_RATE } },
     blackzone: { sets: [], events: [] }
   }
 }
@@ -18,9 +21,16 @@ function listOr(value) {
   return Array.isArray(value) ? value : []
 }
 
+function taxRateOr(settings) {
+  var rate = settings && typeof settings === "object" ? settings.taxRate : undefined
+  return typeof rate === "number" && isFinite(rate) && rate >= 0 && rate <= 1 ? rate : DEFAULT_TAX_RATE
+}
+
 // Parses the data file into { ok: true, data } or { ok: false, error }.
 // Missing or wrongly typed sections fall back to their defaults.
-function parseData(text) {
+// sanitizeFarm (optional, e.g. Farm.sanitizeFarm) cleans farm plots/cycles;
+// it is injected because modules do not import each other.
+function parseData(text, sanitizeFarm) {
   var raw
   try {
     raw = JSON.parse(text)
@@ -34,11 +44,17 @@ function parseData(text) {
 
   var farm = raw.farm && typeof raw.farm === "object" ? raw.farm : {}
   var blackzone = raw.blackzone && typeof raw.blackzone === "object" ? raw.blackzone : {}
+  var farmData = {
+    plots: listOr(farm.plots),
+    cycles: listOr(farm.cycles),
+    settings: { taxRate: taxRateOr(farm.settings) }
+  }
+  if (typeof sanitizeFarm === "function") farmData = sanitizeFarm(farmData)
   return {
     ok: true,
     data: {
       version: DATA_VERSION,
-      farm: { plots: listOr(farm.plots), cycles: listOr(farm.cycles) },
+      farm: farmData,
       blackzone: { sets: listOr(blackzone.sets), events: listOr(blackzone.events) }
     }
   }
