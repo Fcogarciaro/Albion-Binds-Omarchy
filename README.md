@@ -10,7 +10,7 @@ El panel tiene tres pestañas:
 
 - **Atajos**: lo que describe este documento.
 - **Cultivos**: bitácora de ganancias de tu isla (ver [Cultivos](#-cultivos)).
-- **Zona negra**: *próximamente*.
+- **Zona negra**: cuánta plata pierdes en muertes frente a cuánta ganas en cofres (ver la sección Zona negra más abajo).
 
 > ¿Vienes de **Albion Binds**? Ve a [Migrar desde Albion Binds](#-migrar-desde-albion-binds).
 
@@ -190,6 +190,53 @@ semillas × cultivos por semilla × precio × (1 − impuesto)  +  (semillas dev
 
 En `~/.local/share/albion-companion/data.json`. Se guarda solo, cada vez que haces un cambio.
 Para tener el mismo historial en varias PCs, sigue [Sincronizar tus datos entre PCs](#-sincronizar-tus-datos-entre-pcs-nextcloud).
+
+---
+
+## ⚔️ Zona negra
+
+La pestaña **Zona negra** te dice si tus salidas a zona negra **valen la pena**: compara la plata que pierdes cuando mueres (el valor de tu set) con la que ganas en cofres. Albion no ofrece ninguna forma de leer tus muertes ni tu botín,
+así que **tú anotas ambas cosas** y el plugin hace la cuenta.
+
+### Crear un set
+
+1. En **SETS**, escribe un nombre (por ejemplo "Tanque T8") y presiona **Crear**.
+2. Presiona **Editar** en ese set. Para cada pieza elige la **ranura** (casco, armadura, botas, arma, mano izquierda, capa, bolsa, montura, poción o comida), busca la pieza por nombre en la lista, y elige **tier**, **encantamiento** (.0 a .4) y **calidad** (de Normal a Obra maestra). Presiona **Agregar pieza**.
+3. En **poción** y **comida** no hay calidad, pero sí **cantidad** (cuántas llevas). Déjala vacía si es una sola.
+4. **Quitar** borra una pieza; **Renombrar** cambia el nombre del set.
+
+La lista de piezas sale de los datos del juego (`ao-bin-dumps`) y viene guardada en el plugin: no necesita internet.
+
+### Registrar una muerte
+
+1. Abre **REGISTRAR MUERTE**, elige el **set** que llevabas y la **ciudad** de referencia.
+2. Presiona **Consultar precios**: trae de una sola vez el precio de todas las piezas. Cada pieza muestra su precio (× la cantidad), o **sin precio** si nadie lo reportó.
+3. El **valor perdido** se rellena con la suma. Puedes **corregirlo a mano** (por ejemplo si faltaban precios o si no recuperaste todo).
+4. Presiona **Guardar muerte**. Si no consultaste precios, escribe el valor tú.
+
+Una muerte guarda una **foto de los precios** del momento: si el mercado cambia después, tu historial no se reescribe. Si faltó algún precio, aparece como **(parcial)** en el historial.
+
+### Registrar un botín
+
+Abre **REGISTRAR BOTÍN**, escribe la plata que sacaste (lo que vale lo que vendiste o lo que te dio el cofre) y, si quieres, una nota. Presiona **Guardar botín**.
+
+### Cómo se calcula la ganancia
+
+```
+ganancia = suma del botín − suma de las muertes
+```
+
+- **Ganado** es la suma de tus botines, **Perdido** la suma del valor de tus muertes, y arriba ves el balance (en rojo si es negativo), el número de muertes y el botín medio por muerte.
+- Cada set muestra cuántas veces murió y cuánto perdió. El botín no se asigna a un set, por eso la ganancia es total.
+- Los precios salen del [Albion Online Data Project](https://www.albion-online-data.com/) (servidor América): los suben **otros jugadores**, así que pueden estar **desactualizados o faltar**, sobre todo en calidades altas. Es solo una referencia: el valor final lo decides tú.
+
+### Borrar
+
+- **Eliminar** en una fila del historial borra esa muerte o ese botín y cambia los totales.
+- **Eliminar set** (dentro de Editar) borra el set, pero **las muertes que ya registraste se quedan** con el nombre que tenía el set.
+- Pide confirmación: el primer toque cambia el botón a **¿Seguro?** y el segundo borra.
+
+Los datos se guardan en el mismo `data.json` que Cultivos (ver [Dónde se guardan los datos](#dónde-se-guardan-los-datos)) y se sincronizan igual.
 
 ---
 
@@ -422,7 +469,7 @@ Si no sale nada, todo está bien.
 ## ⚙️ Cómo funciona (para curiosos)
 
 - Los atajos se guardan en `~/.config/omarchy/shell.json`.
-- Los datos de **Cultivos** (y los de Zona negra, cuando llegue) se guardan en `~/.local/share/albion-companion/data.json`.
+- Los datos de **Cultivos** y los de **Zona negra** se guardan en `~/.local/share/albion-companion/data.json`.
 - El plugin genera el archivo `~/.config/hypr/albion-companion.lua` y agrega esta línea al final de
   `~/.config/hypr/hyprland.lua` para que Hyprland lo cargue siempre, aunque la barra no esté abierta:
 
@@ -457,6 +504,17 @@ npm test
 ```
 
 En versiones recientes de Node, `node --test tests/` no acepta un directorio, por eso se usa el patrón de arriba.
+
+### Regenerar el catálogo de piezas de Zona negra
+
+`blackzone/GearCatalog.js` se genera a partir de [ao-bin-dumps](https://github.com/ao-data/ao-bin-dumps) (el archivo `formatted/items.json`, de unos 24 MB, que se baja a la carpeta temporal y nunca se guarda en el repositorio). Para actualizarlo después de un parche del juego:
+
+```sh
+npm run build:catalog
+# o con un items.json local: npm run build:catalog -- ruta/a/items.json
+```
+
+Luego revisa el cambio con `git diff` y haz commit del archivo generado.
 
 ## Licencia
 
