@@ -98,3 +98,8 @@ Albion has no API for island state, so the user cannot see what a rotation actua
 - RDD off (global). `gentle-ai review assess --base-ref main --committed-only` (untracked `.atl/` excluded): risk medium (executable_change), 1429 changed lines. Writer self-verification accepted (non-small model); no independent verifier per tier table.
 - Branch exceeds the ~400-line budget; delivery stays `single-pr` as recorded.
 - Next step: user live test in the shell (needs push/merge, since `omarchy plugin update` pulls from GitHub).
+
+## Follow-up: delete (requested 2026-10-11 after live test)
+User live-tested the tab (plots, plant, prefill, persistence OK; harvest not yet tested). Missing: no way to fix a wrong entry.
+- Decisions: delete a cycle (open = cancel planting, closed = drop from history and totals); delete a plot removes its cycles too. Both need a two-tap confirm in the view ("Eliminar" -> "¿Seguro?"), no modal dialogs.
+- [ ] T5: `Farm.removeCycle(farm, cycleId)` and `Farm.removePlot(farm, plotId)`, pure, immutable and test-first. Delete controls in `FarmView.qml` for the open cycle, history rows and plots. Branch `feat/farm-delete`. Route: delegated writer (2 non-trivial files).
