@@ -82,3 +82,9 @@ The user wants to know whether black zone runs pay off. Albion exposes neither d
 
 ### T4 (writer) - dbc1ed0
 - README: tab bullet no longer "próximamente"; new "⚔️ Zona negra" section (create set, log death, log loot, profit formula, crowd-sourced snapshot prices, deletes); "Cómo funciona" line updated; Desarrollo documents `npm run build:catalog`.
+
+### Parent check
+- Spot check: `npm test` 162/162 re-run by parent.
+- RDD off (global). `gentle-ai review assess --base-ref main --committed-only` (untracked `.atl/` excluded): risk medium (executable_change), 2478 changed lines; the generated catalog is included in that count. Writer self-verification accepted (non-small model).
+- Branch exceeds the ~400-line budget; delivery stays `single-pr` as recorded.
+- Next step: user live test after merge/push.
