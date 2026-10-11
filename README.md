@@ -171,10 +171,33 @@ Si no sale nada, todo está bien.
   pcall(require, "hypr.albion-binds")
   ```
 
-- Los atajos solo se registran mientras la ventana activa es Albion (clase `Albion-Online`).
-  Al cambiar a otra ventana se quitan, y los botones vuelven a su función normal.
+- Los atajos solo se registran mientras la ventana activa es Albion (clase `Albion-Online`, ya sea la
+  actual o la original de la ventana, por ejemplo si el juego se abre desde Steam). Al cambiar a otra ventana se quitan,
+  y los botones vuelven a su función normal.
+- Al quitarlos, el plugin solo retira **sus propios** atajos. Si tú ya tenías otro atajo en el mismo botón,
+  no se toca ni se interfiere con él.
 - Albion corre en XWayland y no detecta un `SHIFT` "virtual". Por eso el plugin presiona la tecla
   `Shift` real, luego la tecla, y suelta todo en orden inverso, con 40 ms entre cada paso.
+- Si cambias de ventana a mitad de un atajo, el plugin suelta de inmediato las teclas que haya
+  dejado presionadas, para que ningún `Shift` o `Ctrl` se quede pegado. Si vuelves a presionar el botón
+  mientras un atajo sigue en curso, se ignora.
+- Antes de guardar el archivo, se valida con `luac -p` (si lo tienes instalado). Si el archivo generado
+  tuviera un error, no se aplica y verás el mensaje en el panel.
+
+> **Importante:** desactivar o quitar el plugin **no** borra los atajos de Hyprland, porque viven en
+> `~/.config/hypr/albion-binds.lua`. Antes de quitarlo, apaga el **interruptor general** del panel,
+> o sigue los pasos de la sección **Desinstalar** para limpiar todo.
+
+## 🧪 Desarrollo
+
+Las pruebas necesitan `node` y `lua` (con `luac`):
+
+```sh
+npm test
+# equivale a: node --test "tests/**/*.test.mjs"
+```
+
+En versiones recientes de Node, `node --test tests/` no acepta un directorio, por eso se usa el patrón de arriba.
 
 ## Licencia
 
