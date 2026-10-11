@@ -19,11 +19,12 @@ Panel {
   property string newTrigger: "mouse:275"
   property string errorText: ""
   property string pendingLua: ""
-  readonly property bool editing: customTriggerField.activeFocus || comboField.activeFocus
+  readonly property bool editing: customTriggerField.activeFocus || comboField.activeFocus || dropdown.popupOpen
 
   function save(changes) {
     root.settings = Object.assign({}, root.settings, changes)
-    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, root.settings)
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, root.settings)
     applyToHyprland()
   }
 
@@ -34,7 +35,7 @@ Panel {
   }
 
   function runApply() {
-    var script = String(Qt.resolvedUrl("apply.sh")).replace(/^file:\/\//, "")
+    var script = decodeURIComponent(String(Qt.resolvedUrl("apply.sh")).replace(/^file:\/\//, ""))
     applyProc.command = ["bash", script, pendingLua]
     pendingLua = ""
     applyProc.running = true
@@ -282,6 +283,7 @@ Panel {
           }
 
           Dropdown {
+            id: dropdown
             width: parent.width
             label: "Botón"
             value: root.newTrigger
@@ -300,6 +302,7 @@ Panel {
             font.pixelSize: Style.font.body
             foreground: root.bar.foreground
             onAccepted: comboField.forceActiveFocus()
+            Keys.onEscapePressed: keyCatcher.forceActiveFocus()
           }
 
           Row {

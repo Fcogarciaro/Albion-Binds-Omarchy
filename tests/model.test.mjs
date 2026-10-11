@@ -44,6 +44,12 @@ test("normalizeTrigger: normalizes spacing around plus", () => {
   assert.equal(Model.normalizeTrigger("SUPER   +   x"), "")
 })
 
+test("normalizeTrigger: uppercases modifiers and keeps the last part as-is", () => {
+  assert.equal(Model.normalizeTrigger("super+mouse:275"), "SUPER + mouse:275")
+  assert.equal(Model.normalizeTrigger("ctrl + alt+F5"), "CTRL + ALT + F5")
+  assert.equal(Model.normalizeTrigger("super + mouse:275"), Model.normalizeTrigger("SUPER+mouse:275"))
+})
+
 test("normalizeTrigger: rejects invalid input", () => {
   assert.equal(Model.normalizeTrigger(""), "")
   assert.equal(Model.normalizeTrigger("a b"), "")

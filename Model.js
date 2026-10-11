@@ -33,7 +33,9 @@ function triggerLabel(trigger) {
 function normalizeTrigger(text) {
   var t = String(text || "").trim()
   if (!/^[A-Za-z0-9_:]+( ?\+ ?[A-Za-z0-9_:]+)*$/.test(t)) return ""
-  return t.replace(/ ?\+ ?/g, " + ")
+  var parts = t.split(/ ?\+ ?/)
+  for (var i = 0; i < parts.length - 1; i++) parts[i] = parts[i].toUpperCase()
+  return parts.join(" + ")
 }
 
 // "shift + n" -> { mods: ["SHIFT"], key: "N", text: "SHIFT+N" }, or null.
