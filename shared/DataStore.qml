@@ -12,15 +12,20 @@ Item {
   readonly property string dir: Quickshell.env("HOME") + "/.local/share/albion-companion"
   readonly property string path: dir + "/data.json"
 
-  property var data: Store.defaultData()
+  // Not named `data`: that would shadow Item's default property and swallow
+  // the FileView/Process children.
+  property var document: Store.defaultData()
   property bool loaded: false
+  property bool dirReady: false
   property string error: ""
 
   // FileView is not documented to create parent directories, so mkdir -p
   // runs first (same approach as plugins/notifications/Service.qml).
+  // Saves the current document. The directory is created once per session;
+  // a save requested while mkdir runs is written when it finishes.
   function saveData() {
-    if (mkdirProc.running) return
-    mkdirProc.running = true
+    if (dirReady) file.setText(Store.serializeData(root.document))
+    else if (!mkdirProc.running) mkdirProc.running = true
   }
 
   FileView {
@@ -31,7 +36,7 @@ Item {
     onLoaded: {
       var result = Store.parseData(text())
       if (result.ok) {
-        root.data = result.data
+        root.document = result.data
         root.error = ""
       } else {
         root.error = result.error
@@ -47,8 +52,10 @@ Item {
     id: mkdirProc
     command: ["mkdir", "-p", root.dir]
     onExited: function(exitCode) {
-      if (exitCode === 0) file.setText(Store.serializeData(root.data))
-      else root.error = "No pude crear la carpeta de datos."
+      if (exitCode === 0) {
+        root.dirReady = true
+        file.setText(Store.serializeData(root.document))
+      } else root.error = "No pude crear la carpeta de datos."
     }
   }
 }

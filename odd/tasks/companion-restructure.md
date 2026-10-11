@@ -88,3 +88,8 @@ The exact split may be adjusted to what QML imports allow. Relative `import "bin
 
 ## Final verification
 - npm test: 63/63 pass; bash -n binds/apply.sh ok. QML not executable here. Next step: user reinstall test and PR.
+
+### Parent review
+- qmllint (/usr/lib/qt6/bin/qmllint) found that `DataStore.data` shadowed the default `data` property of Item. That shadowing would swallow the FileView and Process children. It is renamed to `document`, and the shadowing warnings are gone.
+- `saveData()` used to drop a save requested while `mkdir` was running. The directory is now created once (`dirReady`), and later saves write directly.
+- `npm test`: 63/63. The QML has still not been run in the live shell.
