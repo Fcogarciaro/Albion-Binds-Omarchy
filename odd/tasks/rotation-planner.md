@@ -25,7 +25,7 @@ The user rotates crops by price on one island with several plots, and wants to s
 - `qmllint` for QML, with the `qs` symlink as in farm-log T3.
 
 ## Tasks
-- [ ] T1: `DataStore.qml` reloads on external file change (FileView watch). Avoid a reload loop on its own writes, and never drop a pending save. Verify the API in the Quickshell qmltypes. Route: delegated writer.
+- [x] T1: `DataStore.qml` reloads on external file change (FileView watch). Avoid a reload loop on its own writes, and never drop a pending save. Verify the API in the Quickshell qmltypes. Route: delegated writer.
 - [ ] T2: Research the game yield constants with sources: crops per seed, seed return with and without premium/focus, and seeds per farm plot. Route: delegated research worker, read-only.
 - [ ] T3: `farm/Planner.js`, pure and test-first: per-crop yield from history with a fallback to the estimates, expected profit and ranking. Route: delegated writer.
 - [ ] T4: Planner section in `FarmView.qml`: city, fetch all crop and seed prices in one request, ranked list with source label. Route: same writer.
@@ -40,3 +40,13 @@ The user rotates crops by price on one island with several plots, and wants to s
 `single-pr` on branch `feat/rotation-planner`. RDD is off (global).
 
 ## Progress / evidence
+
+### T1 (writer) - d1de713
+- Route: delegated writer. TDD strict, runner `npm test`: RED 5 failing (`Storage.reloadOutcome is not a function`, 103/108 pass), GREEN 108/108.
+- Pure logic: `Storage.reloadOutcome(text, lastWritten, current, sanitize)` returns same / apply / error.
+- API evidence: `/usr/lib/qt6/qml/Quickshell/Io/quickshell-io.qmltypes` FileView props `watchChanges` (:369), `atomicWrites` (:359), `blockWrites` (:349); signals `fileChanged`, `saved`, `saveFailed`, `loaded`, `loadFailed`; method `reload` (:493). Stock usage: `plugins/lock/Service.qml:484-490` (`watchChanges: true` + `onFileChanged: reload()`), `services/AppLibrary.qml:220-226`.
+- Runtime-verified with `qs -p` on this machine: `fileChanged` keeps firing after rename-over (Syncthing style), in-place write, delete and re-create, so no re-arm is needed. An own `setText` (atomic) emits `fileChanged` after `saved`; two `setText` calls yield two `saved`. A `reload()` issued while another write is in flight may not emit `loaded`, so reloads are deferred until no write is pending.
+- Behavior: own write echo is skipped (text equals `lastWritten`), so no flicker or loop; reloads are deferred while writes are pending (`pendingWrites` counter) and run after the last `saved`; a parse error keeps the document and sets `error`, cleared on the next good read; deleted file keeps the document.
+- DataStore end-to-end run (HOME override): own save emitted no extra document change; external edit applied; invalid JSON kept doc plus error; delete kept doc; re-create applied and cleared the error.
+- qmllint: only the baseline `signal-handler-parameters` warning (line moved).
+- Unverified: FileView internals (inode vs path; source not installed), only observed behavior.
