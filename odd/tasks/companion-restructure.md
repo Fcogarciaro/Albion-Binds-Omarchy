@@ -82,6 +82,9 @@ The exact split may be adjusted to what QML imports allow. Relative `import "bin
 - Not unit-testable (QML only); `npm test` stays 63/63. QML was not executed.
 - `panel` window: DEFERRED to phase 2. Evidence: `rg` for manifests listing both "bar-widget" and "panel" kinds over /usr/share/omarchy/shell/plugins and ~/.config/omarchy/plugins finds none; `panel` plugins (e.g. plugins/panels/wifiqr/manifest.json: kinds ["panel"], entryPoints.panel) are standalone summoned overlays; Ui/PluginBarApi.qml exposes only switchPanelFrom (line 72), no way for a bar widget to open its own plugin's panel.
 
-### T6 (same writer)
+### T6 (same writer) - dd5c9ba
 - README rewritten for Albion Companion: tabs, install, "Migrar desde Albion Binds", uninstall, paths, mockup. `--yes` verified in /usr/share/omarchy/bin/omarchy-plugin-remove:5,40 and omarchy-plugin-add:5,70.
 
+
+## Final verification
+- npm test: 63/63 pass; bash -n binds/apply.sh ok. QML not executable here. Next step: user reinstall test and PR.
