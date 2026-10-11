@@ -61,8 +61,9 @@ test("buildCatalog: groups tiers per base, dedupes enchants, sorts", () => {
     item("T4_MOUNTUPGRADE_HORSE", "Brida")
   ])
   assert.deepEqual(catalog, [
-    { base: "2H_BOW", slot: "mainhand", nameEs: "Arco", tiers: [4] },
-    { base: "HEAD_PLATE_SET1", slot: "head", nameEs: "Casco de soldado", tiers: [4, 5, 6] }
+    { base: "2H_BOW", slot: "mainhand", nameEs: "Arco", tiers: [4], names: { 4: "Arco del iniciado" } },
+    { base: "HEAD_PLATE_SET1", slot: "head", nameEs: "Casco de soldado", tiers: [4, 5, 6],
+      names: { 4: "Casco de soldado del iniciado", 5: "Casco de soldado del experto", 6: "Casco de soldado del maestro" } }
   ])
 })
 
@@ -84,13 +85,24 @@ test("buildCatalog: consumables keep the official name of every tier", () => {
   ])
 })
 
+test("buildCatalog: gear keeps the official full name of every tier (searchable)", () => {
+  const catalog = buildCatalog([
+    item("T4_BAG", "Bolsa del iniciado"),
+    item("T5_BAG", "Bolsa del experto"),
+    item("T5_MOUNT_ELK", "Alce")
+  ])
+  assert.deepEqual(catalog.find((e) => e.base === "BAG").names, { 4: "Bolsa del iniciado", 5: "Bolsa del experto" })
+  assert.equal(catalog.find((e) => e.base === "BAG").nameEs, "Bolsa")
+  assert.deepEqual(catalog.find((e) => e.base === "MOUNT_ELK").names, { 5: "Alce" })
+})
+
 test("buildCatalog: falls back to EN-US, then skips unnamed items", () => {
   const catalog = buildCatalog([
     item("T4_MAIN_SWORD", null, "Broadsword"),
     item("T4_OFF_SHIELD", null, null),
     { UniqueName: "T4_OFF_TORCH" }
   ])
-  assert.deepEqual(catalog, [{ base: "MAIN_SWORD", slot: "mainhand", nameEs: "Broadsword", tiers: [4] }])
+  assert.deepEqual(catalog, [{ base: "MAIN_SWORD", slot: "mainhand", nameEs: "Broadsword", tiers: [4], names: { 4: "Broadsword" } }])
 })
 
 test("renderCatalogModule: pragma library module with one entry per line", () => {

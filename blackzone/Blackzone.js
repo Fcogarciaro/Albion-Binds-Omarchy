@@ -368,3 +368,35 @@ function recentEvents(blackzone, limit) {
   events.sort(function(a, b) { return b.at - a.at })
   return limit > 0 ? events.slice(0, limit) : events
 }
+
+// Official name of a piece at a tier: the catalog entry's per-tier name, then
+// its generic name, then the fallback (the base id) when the entry is unknown.
+function pieceName(entry, tier, fallback) {
+  if (!entry) return fallback || ""
+  return entry.names && entry.names[tier] ? entry.names[tier] : entry.nameEs
+}
+
+// Search options for a slot: one per (base, tier), labelled with the game's
+// full name for that tier. value is "<base>:<tier>" (see parsePieceOption).
+function pieceOptions(catalog, slot) {
+  var out = []
+  var list = Array.isArray(catalog) ? catalog : []
+  for (var i = 0; i < list.length; i++) {
+    var entry = list[i]
+    if (entry.slot !== slot) continue
+    for (var j = 0; j < entry.tiers.length; j++) {
+      var tier = entry.tiers[j]
+      out.push({ value: entry.base + ":" + tier, label: pieceName(entry, tier), description: "T" + tier })
+    }
+  }
+  return out
+}
+
+// "<base>:<tier>" -> { base, tier }, or null when malformed.
+function parsePieceOption(value) {
+  if (typeof value !== "string") return null
+  var m = /^(.+):(\d)$/.exec(value)
+  if (!m) return null
+  var tier = Number(m[2])
+  return tier >= MIN_TIER && tier <= MAX_TIER ? { base: m[1], tier: tier } : null
+}

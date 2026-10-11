@@ -251,3 +251,37 @@ test("sanitizeBlackzone: a death of a removed set is kept (setId need not exist)
   }))
   assert.equal(clean.events.length, 1)
 })
+
+const catalog = [
+  { base: "BAG", slot: "bag", nameEs: "Bolsa", tiers: [4, 5], names: { 4: "Bolsa del iniciado", 5: "Bolsa del experto" } },
+  { base: "CAPE", slot: "cape", nameEs: "Capa", tiers: [4], names: { 4: "Capa del iniciado" } },
+  { base: "POTION_POISON", slot: "potion", nameEs: "Poción de veneno", tiers: [3, 5],
+    names: { 3: "Poción de veneno menor", 5: "Poción de veneno" } },
+  { base: "OLD", slot: "bag", nameEs: "Vieja", tiers: [6] }
+]
+
+test("pieceOptions: one option per base and tier with the official name", () => {
+  const opts = plain(Bz.pieceOptions(catalog, "bag"))
+  assert.deepEqual(opts, [
+    { value: "BAG:4", label: "Bolsa del iniciado", description: "T4" },
+    { value: "BAG:5", label: "Bolsa del experto", description: "T5" },
+    { value: "OLD:6", label: "Vieja", description: "T6" }
+  ])
+  assert.deepEqual(plain(Bz.pieceOptions(catalog, "potion")).map((o) => o.label), ["Poción de veneno menor", "Poción de veneno"])
+  assert.deepEqual(plain(Bz.pieceOptions(catalog, "food")), [])
+})
+
+test("parsePieceOption: splits base and tier, rejects garbage", () => {
+  assert.deepEqual(plain(Bz.parsePieceOption("BAG:4")), { base: "BAG", tier: 4 })
+  assert.deepEqual(plain(Bz.parsePieceOption("2H_BOW:8")), { base: "2H_BOW", tier: 8 })
+  for (const bad of ["", "BAG", "BAG:", ":4", "BAG:x", "BAG:0", "BAG:9", null, undefined]) {
+    assert.equal(Bz.parsePieceOption(bad), null, String(bad))
+  }
+})
+
+test("pieceName: official per-tier name with fallbacks", () => {
+  assert.equal(Bz.pieceName(catalog[0], 5), "Bolsa del experto")
+  assert.equal(Bz.pieceName(catalog[3], 6), "Vieja")
+  assert.equal(Bz.pieceName(catalog[0], 7), "Bolsa")
+  assert.equal(Bz.pieceName(null, 4, "BAG"), "BAG")
+})

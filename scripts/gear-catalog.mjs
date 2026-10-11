@@ -70,15 +70,13 @@ export function buildCatalog(items) {
   const catalog = []
   for (const [base, { slot, names }] of bases) {
     const tiers = [...names.keys()].sort((a, b) => a - b)
-    if (slot === "potion" || slot === "food") {
-      // The game names consumables per tier ("Sopa de trigo", "Pollo asado"):
-      // keep every official name and use the lowest tier's as the list label.
-      const perTier = {}
-      for (const t of tiers) perTier[t] = names.get(t)
-      catalog.push({ base, slot, nameEs: names.get(tiers[0]).replace(POTION_GRADE, ""), tiers, names: perTier })
-    } else {
-      catalog.push({ base, slot, nameEs: stripTierAdjective(names.get(tiers[0]), tiers[0]), tiers })
-    }
+    // Every tier keeps its official full name so it can be searched
+    // ("Bolsa del iniciado"); nameEs is the generic base name.
+    const perTier = {}
+    for (const t of tiers) perTier[t] = names.get(t)
+    const first = names.get(tiers[0])
+    const nameEs = slot === "potion" || slot === "food" ? first.replace(POTION_GRADE, "") : stripTierAdjective(first, tiers[0])
+    catalog.push({ base, slot, nameEs, tiers, names: perTier })
   }
   return catalog.sort((a, b) => (a.base < b.base ? -1 : a.base > b.base ? 1 : 0))
 }

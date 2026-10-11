@@ -74,12 +74,7 @@ Column {
   }
 
   function optionsForSlot(slot) {
-    var out = []
-    for (var i = 0; i < Catalog.ITEMS.length; i++) {
-      var entry = Catalog.ITEMS[i]
-      if (entry.slot === slot) out.push({ value: entry.base, label: entry.nameEs, description: entry.base })
-    }
-    return out
+    return Bz.pieceOptions(Catalog.ITEMS, slot)
   }
 
   function findSet(id) {
@@ -88,11 +83,9 @@ Column {
     return null
   }
 
-  // Consumables carry the game's own name for each tier.
+  // The game's own full name for the piece at that tier.
   function pieceName(base, tier) {
-    var entry = catalogIndex[base]
-    if (!entry) return base
-    return entry.names && entry.names[tier] ? entry.names[tier] : entry.nameEs
+    return Bz.pieceName(catalogIndex[base] || null, tier, base)
   }
 
   function qualityName(q) {
@@ -184,10 +177,12 @@ Column {
     resetPieceForm()
   }
 
-  function setPieceBase(base) {
-    pieceBase = base
-    var entry = catalogIndex[base]
-    if (entry && entry.tiers.length > 0) pieceTier = entry.tiers[entry.tiers.length - 1]
+  // Picking a search option sets both the base and its tier.
+  function setPieceOption(value) {
+    var parsed = Bz.parsePieceOption(value)
+    if (!parsed) return
+    pieceBase = parsed.base
+    pieceTier = parsed.tier
   }
 
   function addPiece() {
@@ -552,14 +547,14 @@ Column {
               id: pieceBaseDropdown
               width: parent.width
               label: "Pieza"
-              value: view.pieceBase
+              value: view.pieceBase !== "" ? view.pieceBase + ":" + view.pieceTier : ""
               options: view.baseOptions
               placeholderText: "Buscar…"
               emptyText: "Sin resultados"
               triggerLabel: "Elige una pieza"
               foreground: owner.bar.foreground
               fontFamily: owner.bar.fontFamily
-              onChanged: function(v) { view.setPieceBase(v) }
+              onChanged: function(v) { view.setPieceOption(v) }
             }
 
             Row {
