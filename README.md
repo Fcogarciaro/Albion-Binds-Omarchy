@@ -1,10 +1,18 @@
-# ⚔️ Albion Binds
+# ⚔️ Albion Companion
 
-Plugin para la barra de **Omarchy** que te deja asignar atajos a los botones del mouse
+Plugin para la barra de **Omarchy** con herramientas para Albion Online. Hoy incluye **Atajos**, que te deja asignar atajos a los botones del mouse
 (o a cualquier tecla) que **solo funcionan dentro de Albion Online**.
 
 Cuando no estás en el juego, los botones siguen haciendo lo de siempre
 (por ejemplo, el botón lateral sigue siendo "Atrás" en el navegador).
+
+El panel tiene tres pestañas:
+
+- **Atajos**: lo que describe este documento.
+- **Cultivos**: *próximamente*.
+- **Zona negra**: *próximamente*.
+
+> ¿Vienes de **Albion Binds**? Ve a [Migrar desde Albion Binds](#-migrar-desde-albion-binds).
 
 Ya viene con un atajo listo:
 
@@ -42,10 +50,10 @@ Te va a hacer dos preguntas. Se contestan con las **flechas** y **`Enter`**:
 
 1. **"Clone and add this plugin?"**: antes sale un aviso de que los plugins corren con tus permisos.
    Elige **Yes** y presiona **`Enter`**.
-2. **"Place fcogarcia.albion-binds in which bar section?"**: ya viene marcada la opción **right** (derecha).
+2. **"Place fcogarcia.albion-companion in which bar section?"**: ya viene marcada la opción **right** (derecha).
    Solo presiona **`Enter`**.
 
-Al final debe decir **`Enabled fcogarcia.albion-binds`**.
+Al final debe decir **`Enabled fcogarcia.albion-companion`**.
 
 ### Paso 3: Busca el ícono de la espada ⚔️
 
@@ -69,10 +77,12 @@ Arriba a la derecha de la barra debe aparecer un **ícono de espada**. Con eso y
 
 ### Abrir el panel
 
-Haz **clic izquierdo** en la espada ⚔️ de la barra. Se abre un panel así:
+Haz **clic izquierdo** en la espada ⚔️ de la barra. Se abre un panel con pestañas; **Atajos** se ve así:
 
 ```
-⚔  Albion Binds                      [■■]  ← interruptor general
+[ Atajos ] [ Cultivos ] [ Zona negra ]   ← pestañas
+──────────────────────────────────────────
+⚔  Albion Companion                  [■■]  ← interruptor general
    ACTIVO · SOLO EN ALBION
 ──────────────────────────────────────────
 ATAJOS
@@ -83,7 +93,7 @@ Botón: [ Botón lateral abajo        ▾ ]
 [ Atajo en Albion (ej. SHIFT+N) ] [Agregar]
 ──────────────────────────────────────────
 RESPALDO
-~/albion-binds.json
+~/albion-companion.json
 [Exportar] [Importar]
 ```
 
@@ -117,7 +127,7 @@ Los cambios se aplican al instante. No tienes que reiniciar nada.
 ### 🔁 Llevar tus atajos a otra PC
 
 1. En la PC donde ya tienes tus atajos, abre el panel y presiona **Exportar**.
-   Se crea el archivo `~/albion-binds.json` en tu carpeta personal.
+   Se crea el archivo `~/albion-companion.json` en tu carpeta personal.
 2. Copia ese archivo a la carpeta personal de la otra PC (USB, Drive, Syncthing…).
 3. En la otra PC, abre el panel y presiona **Importar**.
 
@@ -126,12 +136,38 @@ Los cambios se aplican al instante. No tienes que reiniciar nada.
 
 ---
 
+## 🚚 Migrar desde Albion Binds
+
+El plugin cambió de nombre y de id (`fcogarcia.albion-binds` pasó a `fcogarcia.albion-companion`),
+así que hay que reinstalarlo. Tus atajos se recuperan con Exportar e Importar:
+
+1. En el plugin **viejo**, abre el panel y presiona **Exportar**. Se crea `~/albion-binds.json`.
+2. Quita el plugin viejo:
+
+   ```sh
+   omarchy plugin remove fcogarcia.albion-binds --yes
+   ```
+
+3. Instala el nuevo:
+
+   ```sh
+   omarchy plugin add https://github.com/Fcogarciaro/Albion-Binds-Omarchy.git --enable --yes
+   ```
+
+4. Abre el panel nuevo y presiona **Importar**. Si no existe `~/albion-companion.json`,
+   toma `~/albion-binds.json` automáticamente.
+
+Los archivos viejos de Hyprland (`~/.config/hypr/albion-binds.lua` y su línea en `hyprland.lua`)
+se limpian solos la primera vez que el plugin nuevo aplica los atajos. No tienes que borrar nada a mano.
+
+---
+
 ## 🔄 Actualizar el plugin
 
 Cuando haya una versión nueva, abre una terminal y ejecuta:
 
 ```sh
-omarchy plugin update fcogarcia.albion-binds
+omarchy plugin update fcogarcia.albion-companion
 ```
 
 Si hay cambios, te los muestra y te pregunta si quieres aplicarlos: elige **Yes** y presiona **`Enter`**.
@@ -144,10 +180,17 @@ En una terminal, ejecuta estos comandos uno por uno.
 El primero te pide confirmar: elige **Yes** y presiona **`Enter`**.
 
 ```sh
-omarchy plugin remove fcogarcia.albion-binds
-rm ~/.config/hypr/albion-binds.lua
-sed -i '/albion-binds/d' ~/.config/hypr/hyprland.lua
+omarchy plugin remove fcogarcia.albion-companion
+rm ~/.config/hypr/albion-companion.lua
+sed -i '/albion-companion/d' ~/.config/hypr/hyprland.lua
 hyprctl reload
+```
+
+Opcional, para borrar también tus datos y tu respaldo:
+
+```sh
+rm -r ~/.local/share/albion-companion
+rm ~/albion-companion.json
 ```
 
 ---
@@ -178,11 +221,12 @@ Si no sale nada, todo está bien.
 ## ⚙️ Cómo funciona (para curiosos)
 
 - Los atajos se guardan en `~/.config/omarchy/shell.json`.
-- El plugin genera el archivo `~/.config/hypr/albion-binds.lua` y agrega esta línea al final de
+- Los datos de las próximas pestañas (Cultivos y Zona negra) irán en `~/.local/share/albion-companion/data.json`.
+- El plugin genera el archivo `~/.config/hypr/albion-companion.lua` y agrega esta línea al final de
   `~/.config/hypr/hyprland.lua` para que Hyprland lo cargue siempre, aunque la barra no esté abierta:
 
   ```lua
-  pcall(require, "hypr.albion-binds")
+  pcall(require, "hypr.albion-companion")
   ```
 
 - Los atajos solo se registran mientras la ventana activa es Albion (clase `Albion-Online`, ya sea la
@@ -199,7 +243,7 @@ Si no sale nada, todo está bien.
   tuviera un error, no se aplica y verás el mensaje en el panel.
 
 > **Importante:** desactivar o quitar el plugin **no** borra los atajos de Hyprland, porque viven en
-> `~/.config/hypr/albion-binds.lua`. Antes de quitarlo, apaga el **interruptor general** del panel,
+> `~/.config/hypr/albion-companion.lua`. Antes de quitarlo, apaga el **interruptor general** del panel,
 > o sigue los pasos de la sección **Desinstalar** para limpiar todo.
 
 ## 🧪 Desarrollo
