@@ -196,7 +196,7 @@ test("totals: loot, losses, profit, deaths and per-set losses (including removed
   assert.equal(t.loots, 2)
   assert.deepEqual(t.bySet, { s1: { name: "Tanque", deaths: 2, lost: 40000 } })
   assert.equal(t.lootPerDeath, 60000)
-  assert.deepEqual(plain(Bz.totals(empty())), { loot: 0, lost: 0, profit: 0, deaths: 0, loots: 0, bySet: {}, lootPerDeath: null })
+  assert.deepEqual(plain(Bz.totals(empty())), { loot: 0, lost: 0, profit: 0, deaths: 0, loots: 0, bySet: {}, lootPerDeath: null, tomes: {}, tomeCount: 0 })
 })
 
 test("recentEvents: newest first with an optional limit", () => {
@@ -284,4 +284,43 @@ test("pieceName: official per-tier name with fallbacks", () => {
   assert.equal(Bz.pieceName(catalog[3], 6), "Vieja")
   assert.equal(Bz.pieceName(catalog[0], 7), "Bolsa")
   assert.equal(Bz.pieceName(null, 4, "BAG"), "BAG")
+})
+
+test("TOME_TIERS: T1-T8 with the official Spanish names", () => {
+  assert.deepEqual(plain(Bz.TOME_TIERS.map((t) => t.tier)), [1, 2, 3, 4, 5, 6, 7, 8])
+  assert.equal(Bz.TOME_TIERS[0].name, "Tomo de conocimiento del principiante")
+  assert.equal(Bz.TOME_TIERS[6].name, "Tomo de conocimiento del gran maestro")
+  assert.equal(Bz.TOME_TIERS[7].label, "anciano")
+})
+
+test("logLoot: tomes are optional, cleaned, and allowed with value 0", () => {
+  let bz = ok(Bz.logLoot(empty(), { value: 0, tomes: { 3: 2, 6: 1, 5: 0 }, now: 1, id: "t1" }))
+  assert.deepEqual(plain(bz.events[0]), { id: "t1", type: "loot", at: 1, value: 0, note: "", tomes: { 3: 2, 6: 1 } })
+  bz = ok(Bz.logLoot(bz, { value: 10, tomes: { 9: 4, 2: -1, 4: 1.5, 7: "x" }, now: 2, id: "t2" }))
+  assert.equal("tomes" in plain(bz.events[1]), false)
+  bz = ok(Bz.logLoot(bz, { value: 10, tomes: { 1: 999999, 2: 1000000 }, now: 3, id: "t3" }))
+  assert.deepEqual(plain(bz.events[2]).tomes, { 1: 999999 })
+})
+
+test("sanitizeBlackzone: keeps tomes, cleans them, leaves old loot unchanged", () => {
+  const clean = plain(Bz.sanitizeBlackzone({ events: [
+    { id: "a", type: "loot", at: 1, value: 5, note: "", tomes: { 2: 3, 4: 0, 11: 1, 5: -2 } },
+    { id: "b", type: "loot", at: 1, value: 5, note: "", tomes: "x" },
+    { id: "c", type: "loot", at: 1, value: 5, note: "" }
+  ] }))
+  assert.deepEqual(clean.events[0].tomes, { 2: 3 })
+  assert.equal("tomes" in clean.events[1], false)
+  assert.deepEqual(clean.events[2], { id: "c", type: "loot", at: 1, value: 5, note: "" })
+})
+
+test("totals: tomes per tier and in total, never part of profit", () => {
+  let bz = ok(Bz.logLoot(empty(), { value: 100, tomes: { 3: 2, 6: 1 }, now: 1, id: "l1" }))
+  bz = ok(Bz.logLoot(bz, { value: 0, tomes: { 3: 1 }, now: 2, id: "l2" }))
+  bz = ok(Bz.logLoot(bz, { value: 50, now: 3, id: "l3" }))
+  const t = plain(Bz.totals(bz))
+  assert.deepEqual(t.tomes, { 3: 3, 6: 1 })
+  assert.equal(t.tomeCount, 4)
+  assert.equal(t.profit, 150)
+  assert.deepEqual(plain(Bz.totals(empty())).tomes, {})
+  assert.equal(Bz.totals(empty()).tomeCount, 0)
 })

@@ -220,6 +220,8 @@ Una muerte guarda una **foto de los precios** del momento: si el mercado cambia 
 
 Abre **REGISTRAR BOTÍN**, escribe la plata que sacaste (lo que vale lo que vendiste o lo que te dio el cofre) y, si quieres, una nota. Presiona **Guardar botín**.
 
+En el mismo formulario puedes contar los **Tomos de conocimiento** que te cayeron, por nivel (T1 a T8). Solo se cuentan: no tienen valor en plata y no entran en la ganancia. El resumen muestra el total de cada nivel y el historial los anota en cada botín; puedes guardar un botín solo con tomos y sin plata.
+
 ### Cómo se calcula la ganancia
 
 ```

@@ -10,7 +10,9 @@
 //          pieces: [{ itemId, quality, quantity, price|null }] }
 //        Prices are a snapshot taken when the death is logged. The set name is
 //        stored too, so deleting or renaming a set never rewrites history.
-// Loot:  { id, type: "loot", at, value, note }
+// Loot:  { id, type: "loot", at, value, note, tomes? }
+//        tomes: { "<tier>": count } of untradeable tomes of insight; counted
+//        only, never part of the silver value or the profit.
 // Operations return { ok: true, blackzone } or { ok: false, error }.
 
 var SLOTS = [
@@ -33,6 +35,35 @@ var MIN_TIER = 1
 var MAX_TIER = 8
 var MAX_ENCHANT = 4
 var MAX_QUALITY = 5
+var MAX_TOMES = 999999
+
+// Untradeable tomes of insight (T<n>_SKILLBOOK_NONTRADABLE), official ES-ES.
+var TOME_TIERS = [
+  { tier: 1, label: "principiante" }, { tier: 2, label: "novato" }, { tier: 3, label: "obrero" },
+  { tier: 4, label: "iniciado" }, { tier: 5, label: "experto" }, { tier: 6, label: "maestro" },
+  { tier: 7, label: "gran maestro" }, { tier: 8, label: "anciano" }
+].map(function(t) { return { tier: t.tier, label: t.label, name: "Tomo de conocimiento del " + t.label } })
+
+// { "<tier>": count } with valid tiers and positive integer counts only, or
+// null when nothing is left.
+function cleanTomes(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null
+  var out = {}
+  var any = false
+  for (var i = 0; i < TOME_TIERS.length; i++) {
+    var tier = TOME_TIERS[i].tier
+    var n = raw[tier]
+    if (isNonNegativeInt(n) && n > 0 && n <= MAX_TOMES) { out[tier] = n; any = true }
+  }
+  return any ? out : null
+}
+
+function lootEvent(id, at, value, note, tomes) {
+  var event = { id: id, type: "loot", at: at, value: value, note: note }
+  var clean = cleanTomes(tomes)
+  if (clean) event.tomes = clean
+  return event
+}
 
 function isSlot(slot) {
   return SLOTS.some(function(s) { return s.value === slot })
@@ -169,7 +200,7 @@ function sanitizeEvent(raw) {
   if (typeof raw.id !== "string" || raw.id === "") return null
   if (!isNonNegativeInt(raw.at) || !isNonNegativeInt(raw.value)) return null
   if (raw.type === "loot") {
-    return { id: raw.id, type: "loot", at: raw.at, value: raw.value, note: typeof raw.note === "string" ? raw.note.trim().slice(0, MAX_NOTE) : "" }
+    return lootEvent(raw.id, raw.at, raw.value, typeof raw.note === "string" ? raw.note.trim().slice(0, MAX_NOTE) : "", raw.tomes)
   }
   if (raw.type !== "death") return null
   if (typeof raw.setId !== "string" || raw.setId === "") return null
@@ -320,7 +351,7 @@ function logDeath(blackzone, input) {
   return { ok: true, blackzone: withEvents(bz, bz.events.concat([event])) }
 }
 
-// input: { value, note?, now, id }
+// input: { value, note?, tomes?, now, id }. The value may be 0 (tomes only).
 function logLoot(blackzone, input) {
   var bz = normalize(blackzone)
   var i = input || {}
@@ -328,7 +359,7 @@ function logLoot(blackzone, input) {
   var baseError = validEventBase(bz, i)
   if (baseError) return fail(baseError)
   var note = typeof i.note === "string" ? i.note.trim().slice(0, MAX_NOTE) : ""
-  return { ok: true, blackzone: withEvents(bz, bz.events.concat([{ id: i.id, type: "loot", at: i.now, value: i.value, note: note }])) }
+  return { ok: true, blackzone: withEvents(bz, bz.events.concat([lootEvent(i.id, i.now, i.value, note, i.tomes)])) }
 }
 
 function removeEvent(blackzone, eventId) {
@@ -340,15 +371,20 @@ function removeEvent(blackzone, eventId) {
 // ---------- Queries ----------
 
 // Profit = loot - losses. bySet counts deaths per set id (removed sets keep
-// the name stored in their deaths). lootPerDeath is null without deaths.
+// the name stored in their deaths). tomes counts insight tomes per tier
+// (no silver value). lootPerDeath is null without deaths.
 function totals(blackzone) {
   var bz = normalize(blackzone)
-  var result = { loot: 0, lost: 0, profit: 0, deaths: 0, loots: 0, bySet: {}, lootPerDeath: null }
+  var result = { loot: 0, lost: 0, profit: 0, deaths: 0, loots: 0, bySet: {}, lootPerDeath: null, tomes: {}, tomeCount: 0 }
   for (var i = 0; i < bz.events.length; i++) {
     var e = bz.events[i]
     if (e.type === "loot") {
       result.loot += e.value
       result.loots += 1
+      for (var tier in e.tomes) {
+        result.tomes[tier] = (result.tomes[tier] || 0) + e.tomes[tier]
+        result.tomeCount += e.tomes[tier]
+      }
     } else if (e.type === "death") {
       result.lost += e.value
       result.deaths += 1

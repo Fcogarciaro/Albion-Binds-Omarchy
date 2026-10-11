@@ -57,8 +57,59 @@ Column {
   property bool editorBusy: false
   signal pieceFormCleared()
 
+  // Tome counters live inside a Repeater too: they push their text here
+  // (tomeInput: { "<tier>": "text" }) and report focus through tomeBusy.
+  property var tomeInput: ({})
+  property bool tomeBusy: false
+  signal tomeFormCleared()
+
+  function setTomeText(tier, text) {
+    var next = {}
+    for (var k in tomeInput) next[k] = tomeInput[k]
+    next[tier] = text
+    tomeInput = next
+  }
+
+  // One "\n<official name>: <count>" line per tier with tomes (none -> "").
+  function tomeSummary(tomes) {
+    var out = ""
+    for (var i = 0; i < Bz.TOME_TIERS.length; i++) {
+      var t = Bz.TOME_TIERS[i]
+      if (tomes && tomes[t.tier] > 0) out += "\n" + t.name + ": " + tomes[t.tier]
+    }
+    return out
+  }
+
+  // "T3 x2, T6 x1" for a loot's tomes (empty when none).
+  function tomesText(tomes) {
+    var parts = []
+    for (var i = 0; i < Bz.TOME_TIERS.length; i++) {
+      var tier = Bz.TOME_TIERS[i].tier
+      if (tomes && tomes[tier] > 0) parts.push("T" + tier + " x" + tomes[tier])
+    }
+    return parts.join(", ")
+  }
+
+  // Counts typed in the tome fields, or null when one is not a whole number.
+  function parseTomeInput() {
+    var out = {}
+    for (var k in tomeInput) {
+      var text = String(tomeInput[k]).trim()
+      if (text === "") continue
+      var n = Farm.parseInteger(text)
+      if (n === null) return null
+      if (n > 0) out[k] = n
+    }
+    return out
+  }
+
+  function hasTomes(tomes) {
+    for (var k in tomes) return true
+    return false
+  }
+
   readonly property bool editing: newSetField.activeFocus || editorBusy
-    || deathValueField.activeFocus || lootValueField.activeFocus || lootNoteField.activeFocus
+    || tomeBusy || deathValueField.activeFocus || lootValueField.activeFocus || lootNoteField.activeFocus
     || deathSetDropdown.popupOpen || cityDropdown.popupOpen
 
   readonly property var enchantOptions: [0, 1, 2, 3, 4].map(function(e) { return { value: String(e), label: "." + e } })
@@ -282,9 +333,13 @@ Column {
   // ---------- Loot ----------
 
   function saveLoot() {
-    var value = Farm.parseInteger(lootValueField.text)
+    var tomes = parseTomeInput()
+    if (tomes === null) { errorText = "Los tomos deben ser números enteros."; return }
+    var value = lootValueField.text.trim() === "" && hasTomes(tomes) ? 0 : Farm.parseInteger(lootValueField.text)
     if (value === null) { errorText = "El valor del botín debe ser un número entero."; return }
-    if (commit(Bz.logLoot(blackzone, { value: value, note: lootNoteField.text, now: Date.now(), id: newId("l") }))) {
+    if (commit(Bz.logLoot(blackzone, { value: value, tomes: tomes, note: lootNoteField.text, now: Date.now(), id: newId("l") }))) {
+      tomeInput = ({})
+      tomeFormCleared()
       lootValueField.text = ""
       lootNoteField.text = ""
       lootOpen = false
@@ -340,6 +395,7 @@ Column {
       text: "Ganado: " + Farm.formatSilver(view.sums.loot) + " (" + view.sums.loots + " botín/es)"
         + "\nPerdido: " + Farm.formatSilver(view.sums.lost) + " (" + view.sums.deaths + " muerte(s))"
         + (view.sums.lootPerDeath !== null ? "\nBotín medio por muerte: " + Farm.formatSilver(view.sums.lootPerDeath) : "")
+        + view.tomeSummary(view.sums.tomes)
       color: owner.bar.foreground
       opacity: 0.7
       font.family: owner.bar.fontFamily
@@ -899,6 +955,44 @@ Column {
         Keys.onEscapePressed: view.catcher.forceActiveFocus()
       }
 
+      Text {
+        width: parent.width
+        textFormat: Text.PlainText
+        text: "Tomos de conocimiento (cantidad por nivel, sin valor en plata)"
+        color: owner.bar.foreground
+        opacity: 0.7
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+
+      Flow {
+        width: parent.width
+        spacing: Style.space(6)
+
+        Repeater {
+          model: Bz.TOME_TIERS
+
+          TextField {
+            id: tomeField
+            required property var modelData
+            width: (parent.width - 3 * Style.space(6)) / 4
+            placeholderText: "T" + modelData.tier
+            font.family: owner.bar.fontFamily
+            font.pixelSize: Style.font.body
+            foreground: owner.bar.foreground
+            onTextChanged: view.setTomeText(modelData.tier, text)
+            onActiveFocusChanged: view.tomeBusy = activeFocus
+            Keys.onEscapePressed: view.catcher.forceActiveFocus()
+
+            Connections {
+              target: view
+              function onTomeFormCleared() { tomeField.text = "" }
+            }
+          }
+        }
+      }
+
       TextField {
         id: lootNoteField
         width: parent.width
@@ -986,7 +1080,8 @@ Column {
           text: view.shortDate(historyRow.modelData.at) + " · "
             + (historyRow.isDeath
               ? "Muerte · " + historyRow.modelData.setName + (historyRow.modelData.partial ? " (parcial)" : "")
-              : "Botín" + (historyRow.modelData.note !== "" ? " · " + historyRow.modelData.note : ""))
+              : "Botín" + (historyRow.modelData.note !== "" ? " · " + historyRow.modelData.note : "")
+                + (historyRow.modelData.tomes ? " · Tomos: " + view.tomesText(historyRow.modelData.tomes) : ""))
           color: owner.bar.foreground
           font.family: owner.bar.fontFamily
           font.pixelSize: Style.font.bodySmall
