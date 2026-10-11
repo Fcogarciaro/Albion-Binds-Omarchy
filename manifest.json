@@ -6,8 +6,8 @@
   "author": "fcogarcia",
   "license": "MIT",
   "description": "Atajos de mouse y teclado que solo funcionan cuando Albion Online tiene el foco.",
-  "kinds": ["bar-widget"],
-  "entryPoints": { "barWidget": "Panel.qml" },
+  "kinds": ["bar-widget", "panel"],
+  "entryPoints": { "barWidget": "Panel.qml", "panel": "Window.qml" },
   "barWidget": {
     "displayName": "Albion Companion",
     "description": "Agrega, pausa y quita atajos que solo se activan en Albion Online.",

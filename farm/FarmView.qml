@@ -14,6 +14,8 @@ Column {
   required property var owner
   // Item that takes focus back when a text field is dismissed with Esc.
   property Item catcher: null
+  // Two-column layout, used by the large window. The bar panel keeps one column.
+  property bool wide: false
 
   readonly property var store: owner.store
   readonly property var farm: store.document.farm

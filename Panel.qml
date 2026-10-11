@@ -96,6 +96,21 @@ Panel {
   DataStore { id: dataStore }
   readonly property var store: dataStore
 
+  // Opens the large window (Window.qml). The panel closes first so it does not
+  // sit behind the window's exclusive keyboard focus.
+  readonly property string openWindowCommand: "omarchy-shell shell toggle fcogarcia.albion-companion '{}'"
+
+  function openWindow() {
+    root.close()
+    if (root.bar && typeof root.bar.run === "function") root.bar.run(openWindowCommand)
+    else windowProc.running = true
+  }
+
+  Process {
+    id: windowProc
+    command: ["bash", "-c", root.openWindowCommand]
+  }
+
   Component.onCompleted: applyToHyprland()
 
   // Loading is also triggered once when the path is set; backupAction keeps
@@ -208,6 +223,17 @@ Panel {
           fontFamily: root.bar.fontFamily
           fontSize: Style.font.bodySmall
           onChanged: function(v) { root.currentTab = v }
+        }
+
+        Button {
+          visible: root.currentTab !== "binds"
+          width: parent.width
+          text: "Abrir ventana grande"
+          foreground: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+          fontSize: Style.font.bodySmall
+          bordered: true
+          onClicked: root.openWindow()
         }
 
         BindsView {
