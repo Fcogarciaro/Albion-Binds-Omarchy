@@ -1,6 +1,6 @@
 # ⚔️ Albion Companion
 
-Plugin para la barra de **Omarchy** con herramientas para Albion Online. Hoy incluye **Atajos**, que te deja asignar atajos a los botones del mouse
+Plugin para la barra de **Omarchy** con herramientas para Albion Online. Hoy incluye **Atajos** y **Cultivos**. Atajos te deja asignar atajos a los botones del mouse
 (o a cualquier tecla) que **solo funcionan dentro de Albion Online**.
 
 Cuando no estás en el juego, los botones siguen haciendo lo de siempre
@@ -9,7 +9,7 @@ Cuando no estás en el juego, los botones siguen haciendo lo de siempre
 El panel tiene tres pestañas:
 
 - **Atajos**: lo que describe este documento.
-- **Cultivos**: *próximamente*.
+- **Cultivos**: bitácora de ganancias de tu isla (ver [Cultivos](#-cultivos)).
 - **Zona negra**: *próximamente*.
 
 > ¿Vienes de **Albion Binds**? Ve a [Migrar desde Albion Binds](#-migrar-desde-albion-binds).
@@ -136,6 +136,46 @@ Los cambios se aplican al instante. No tienes que reiniciar nada.
 
 ---
 
+## 🌾 Cultivos
+
+La pestaña **Cultivos** lleva la cuenta de lo que realmente ganas con tu isla. Albion no ofrece ninguna forma de leer el estado de la isla,
+así que **tú anotas cada ciclo** y el plugin calcula la ganancia.
+Cubre los cultivos de **T1 a T8** (zanahoria, frijol, trigo, nabo, repollo, papa, maíz y calabaza). Hierbas y animales no están incluidos.
+
+### Cómo anotar un ciclo
+
+1. Escribe el nombre de tu parcela y presiona **Agregar** (una vez por parcela).
+2. Cuando plantes, presiona **Plantar** en esa parcela. Elige el cultivo y anota cuántas semillas plantaste y a qué precio.
+3. Cuando coseches, presiona **Cosechar**. Anota cuántos cultivos salieron, cuántas semillas te devolvieron y a qué precio vendes cada cultivo.
+4. El ciclo pasa al **historial** con su ganancia, y las parcelas muestran su total.
+
+Cada parcela puede tener **un solo ciclo abierto** a la vez. Si se perdió la cosecha, anota 0 cultivos.
+
+### Cómo se calcula la ganancia
+
+```
+cultivos × precio × (1 − impuesto)  +  (semillas devueltas − semillas plantadas) × precio de la semilla
+```
+
+- Las semillas se valoran al precio que anotaste al plantar.
+- El **impuesto** por defecto es **6.5 %** (4 % con premium + 2.5 % de la orden de venta). Puedes cambiarlo al final de la pestaña.
+- Las cifras se redondean a plata entera y solo cuentan los ciclos ya cosechados.
+
+### Precio de mercado (opcional)
+
+El botón **Precio de mercado** rellena el precio con el más bajo en venta de la ciudad que elijas, usando los datos del
+[Albion Online Data Project](https://www.albion-online-data.com/) (servidor América).
+
+- Esos datos los suben **otros jugadores**, así que pueden estar **desactualizados o faltar** (por ejemplo, las semillas de frijol casi nunca tienen precio).
+- Si no hay datos o no hay internet, el campo se queda vacío y puedes escribir el precio a mano. Nada se bloquea.
+- Usa `curl`, que ya viene con Omarchy.
+
+### Dónde se guardan los datos
+
+En `~/.local/share/albion-companion/data.json`. Se guarda solo, cada vez que haces un cambio. Copia ese archivo para llevar tu historial a otra PC.
+
+---
+
 ## 🚚 Migrar desde Albion Binds
 
 El plugin cambió de nombre y de id (`fcogarcia.albion-binds` pasó a `fcogarcia.albion-companion`),
@@ -221,7 +261,7 @@ Si no sale nada, todo está bien.
 ## ⚙️ Cómo funciona (para curiosos)
 
 - Los atajos se guardan en `~/.config/omarchy/shell.json`.
-- Los datos de las próximas pestañas (Cultivos y Zona negra) irán en `~/.local/share/albion-companion/data.json`.
+- Los datos de **Cultivos** (y los de Zona negra, cuando llegue) se guardan en `~/.local/share/albion-companion/data.json`.
 - El plugin genera el archivo `~/.config/hypr/albion-companion.lua` y agrega esta línea al final de
   `~/.config/hypr/hyprland.lua` para que Hyprland lo cargue siempre, aunque la barra no esté abierta:
 
