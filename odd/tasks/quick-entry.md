@@ -20,7 +20,7 @@
 ## Tasks
 - [x] Q1: Pure silver parser and formatter round trip (`Farm.parseSilver`), wired into all silver fields in FarmView and BlackzoneView. Route: delegated writer.
 - [x] Q2: Remembered choices, repeat last expense, "Morí con este set", Enter/focus behavior. Route: same writer.
-- [ ] Q3: README updates. Route: same writer.
+- [x] Q3: README updates. Route: same writer.
 - [ ] S1: Large window spike (report only, throwaway plugin outside the repo, cleaned up). Route: delegated spike worker.
 
 ## Delivery
@@ -41,3 +41,6 @@
 - Enter: loot value/tomes, expense value, death value and plant price/harvest price save; middle fields of the plant/harvest chain still move to the next field. Opening a section focuses its first text field through `Qt.callLater` (planner has none: first control is a dropdown).
 - qmllint: 0 errors, same three categories (383 warnings, +6 unqualified/missing-property from the new code). Delegate-id check: 0.
 - Not run live in Quickshell.
+
+### Q3 (writer) - f671b41
+- README: shorthand table, "Repetir" expense button, "Morí con este set", remembered choices (`ui` in `data.json`), Enter and focus behavior. Docs only; `npm test` 184/184.
