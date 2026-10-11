@@ -25,7 +25,7 @@ Verified against the installed Omarchy shell and the Hyprland 0.56.2 Lua stubs (
 
 ## TDD
 - Mode: strict, ON (source: session configuration).
-- Runner: `node --test tests/`
+- Runner: `npm test` (`node --test "tests/**/*.test.mjs"`; Node 26 rejects a bare directory argument)
 - The Lua runtime tests run the generated Lua under `lua` (5.5) with a mocked `hl` table, and are spawned from node.
 
 ## Tasks
@@ -36,7 +36,7 @@ Verified against the installed Omarchy shell and the Hyprland 0.56.2 Lua stubs (
 - [x] T5: README: explain how things work now and how to clean up when uninstalling. Route: same writer.
 
 ## Acceptance criteria
-- `node --test tests/` passes.
+- `npm test` passes (verified: 35/35).
 - The generated Lua compiles with `luac -p` and, against the mocked `hl`:
   - binds only while Albion is focused;
   - unbinds with handles and never calls `hl.unbind`;
@@ -51,4 +51,4 @@ Verified against the installed Omarchy shell and the Hyprland 0.56.2 Lua stubs (
 - T3: RED: 2 of 4 apply tests failing (invalid Lua was installed). Added `luac -p` on the temp file before `mv`. GREEN: 34/34 total. T2 commit: b9e13a3.
 - T4: RED: new normalizeTrigger test failed (1 fail) before the Model.js change; GREEN 35/35. Panel.qml edited (decodeURIComponent, typeof guard, Dropdown id + popupOpen in editing, Escape on customTriggerField); no automated test for QML, reviewed by diff only. T3 commit: 86c595c.
 - T5: README updated (how it works, uninstall warning, Desarrollo). Docs only, no RED/GREEN; suite still 35/35. T4 commit: e9a7ed4. T5 commit: 694cdec.
-_(updated per task)_
+- Parent spot check: `npm test` 35/35 green; no AI trailers in commits; generated Lua reviewed by hand. Next: PR (user decision).
