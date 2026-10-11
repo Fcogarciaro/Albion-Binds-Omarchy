@@ -63,3 +63,16 @@ function parseData(text, sanitizeFarm) {
 function serializeData(data) {
   return JSON.stringify(data, null, 2) + "\n"
 }
+
+// Decides what to do with the text read after the file changed on disk.
+// lastWritten is the text this plugin last saved: seeing it again is our own
+// write echoing back. Returns { action: "same" } (nothing to apply),
+// { action: "apply", data } or { action: "error", error } (keep the current
+// document).
+function reloadOutcome(text, lastWritten, current, sanitizeFarm) {
+  if (text === lastWritten) return { action: "same" }
+  var result = parseData(text, sanitizeFarm)
+  if (!result.ok) return { action: "error", error: result.error }
+  if (serializeData(result.data) === serializeData(current)) return { action: "same" }
+  return { action: "apply", data: result.data }
+}

@@ -80,3 +80,33 @@ test("parseData: an injected farm sanitizer cleans plots and cycles", () => {
   const r = plain(Storage.parseData(text, sanitize))
   assert.deepEqual(r.data.farm, { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.04 } })
 })
+
+test("reloadOutcome: text identical to our last write is our own echo", () => {
+  const text = Storage.serializeData(Storage.defaultData())
+  assert.deepEqual(plain(Storage.reloadOutcome(text, text, Storage.defaultData())), { action: "same" })
+})
+
+test("reloadOutcome: a different valid file is applied", () => {
+  const external = { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.04 } }, blackzone: { sets: [], events: [] } }
+  const r = plain(Storage.reloadOutcome(JSON.stringify(external), "", Storage.defaultData()))
+  assert.equal(r.action, "apply")
+  assert.deepEqual(r.data.farm.plots, [{ id: "a" }])
+})
+
+test("reloadOutcome: content equal to the in-memory document is not re-applied", () => {
+  const text = JSON.stringify(Storage.defaultData())
+  assert.deepEqual(plain(Storage.reloadOutcome(text, "other", Storage.defaultData())), { action: "same" })
+})
+
+test("reloadOutcome: unparseable content reports the parse error", () => {
+  const r = plain(Storage.reloadOutcome("{nope", "", Storage.defaultData()))
+  assert.equal(r.action, "error")
+  assert.equal(r.error, "El archivo de datos no es JSON válido.")
+})
+
+test("reloadOutcome: honors the injected sanitizer", () => {
+  const sanitize = (farm) => ({ plots: [], cycles: [], settings: farm.settings })
+  const text = JSON.stringify({ farm: { plots: [{ id: "a" }] } })
+  const r = plain(Storage.reloadOutcome(text, "", Storage.defaultData(), sanitize))
+  assert.equal(r.action, "same")
+})

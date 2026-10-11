@@ -20,33 +20,95 @@ Item {
   property bool dirReady: false
   property string error: ""
 
+  // Text of the last write we issued. A change notification that reads it back
+  // is our own atomic write (rename) echoing, not an external edit.
+  property string lastWritten: ""
+  // Writes issued and not yet reported as saved/failed. While > 0, reloads
+  // are deferred so a stale read can never overwrite newer in-memory edits.
+  property int pendingWrites: 0
+  property bool reloadPending: false
+  property bool reloadError: false
+
   // FileView is not documented to create parent directories, so mkdir -p
   // runs first (same approach as plugins/notifications/Service.qml).
   // Saves the current document. The directory is created once per session;
   // a save requested while mkdir runs is written when it finishes.
   function saveData() {
-    if (dirReady) file.setText(Store.serializeData(root.document))
-    else if (!mkdirProc.running) mkdirProc.running = true
+    if (dirReady) writeNow()
+    else if (!mkdirProc.running) {
+      pendingWrites++
+      mkdirProc.running = true
+    }
+  }
+
+  function writeNow() {
+    var text = Store.serializeData(root.document)
+    root.lastWritten = text
+    root.pendingWrites++
+    file.setText(text)
+  }
+
+  function writeDone() {
+    root.pendingWrites = Math.max(0, root.pendingWrites - 1)
+    if (root.pendingWrites === 0 && root.reloadPending) {
+      root.reloadPending = false
+      file.reload()
+    }
+  }
+
+  // Verified with Quickshell on this machine: watchChanges keeps firing
+  // fileChanged after rename-over (Syncthing), delete and re-create.
+  function applyReload(text) {
+    var out = Store.reloadOutcome(text, root.lastWritten, root.document, Farm.sanitizeFarm)
+    if (out.action === "apply") {
+      root.document = out.data
+      root.error = ""
+      root.reloadError = false
+    } else if (out.action === "error") {
+      root.error = out.error
+      root.reloadError = true
+    } else if (root.reloadError) {
+      root.error = ""
+      root.reloadError = false
+    }
   }
 
   FileView {
     id: file
     path: root.path
     atomicWrites: true
+    watchChanges: true
     printErrors: false
     onLoaded: {
-      var result = Store.parseData(text(), Farm.sanitizeFarm)
-      if (result.ok) {
-        root.document = result.data
-        root.error = ""
-      } else {
-        root.error = result.error
+      if (root.loaded && root.pendingWrites > 0) {
+        root.reloadPending = true
+        return
       }
-      root.loaded = true
+      if (root.loaded) {
+        root.applyReload(text())
+      } else {
+        var result = Store.parseData(text(), Farm.sanitizeFarm)
+        if (result.ok) {
+          root.document = result.data
+          root.error = ""
+        } else {
+          root.error = result.error
+        }
+        root.loaded = true
+      }
     }
-    // A missing file is the normal first-run state: keep the defaults.
+    // A missing file is the normal first-run state: keep the defaults. A file
+    // deleted later keeps the in-memory document too.
     onLoadFailed: function(err) { root.loaded = true }
-    onSaveFailed: function(err) { root.error = "No pude guardar los datos." }
+    onFileChanged: {
+      if (root.pendingWrites > 0) root.reloadPending = true
+      else file.reload()
+    }
+    onSaved: root.writeDone()
+    onSaveFailed: function(err) {
+      root.error = "No pude guardar los datos."
+      root.writeDone()
+    }
   }
 
   Process {
@@ -55,8 +117,12 @@ Item {
     onExited: function(exitCode) {
       if (exitCode === 0) {
         root.dirReady = true
-        file.setText(Store.serializeData(root.document))
-      } else root.error = "No pude crear la carpeta de datos."
+        root.writeNow()
+        root.writeDone()
+      } else {
+        root.error = "No pude crear la carpeta de datos."
+        root.writeDone()
+      }
     }
   }
 }
