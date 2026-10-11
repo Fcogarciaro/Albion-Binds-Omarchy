@@ -172,6 +172,20 @@ El botón **Precio de mercado** rellena el precio con el más bajo en venta de l
 - Si no hay datos o no hay internet, el campo se queda vacío y puedes escribir el precio a mano. Nada se bloquea.
 - Usa `curl`, que ya viene con Omarchy.
 
+### Planificador de rotación
+
+La sección **Planificador** (plegable, con el botón Mostrar/Ocultar) te ayuda a decidir qué plantar después. Con la ciudad que elijas, consulta de una sola vez los precios de todos los cultivos y semillas y ordena los cultivos de mayor a menor **ganancia esperada por parcela y ciclo**:
+
+```
+semillas × cultivos por semilla × precio × (1 − impuesto)  +  (semillas devueltas − semillas por parcela) × precio de la semilla
+```
+
+- Cada fila dice de dónde sale el rendimiento: **historial** si ya cerraste al menos un ciclo de ese cultivo (se usa el promedio real de tus cosechas), o **estimado** si no (se usan los datos del juego).
+- Si falta el precio del cultivo, la fila dice **sin precio** y va al final. Si solo falta el de la semilla, la ganancia cuenta solo la venta de cultivos y se marca como **parcial**, y va después de las filas completas.
+- Ajustes (se guardan en `data.json`): **Premium** (duplica los cultivos por semilla), **Riego con foco** (más semillas devueltas) y **Semillas por parcela** (9 por defecto; cámbialo si en tu juego es otro número).
+- Los valores estimados salen de los datos del juego y son **aproximados**; el efecto de Premium en los cultivos viene de la wiki y no está en los datos oficiales. Tu historial los reemplaza en cuanto lo tengas.
+- Los precios, como arriba, los suben otros jugadores y pueden estar desactualizados. Si no hay internet, solo verás un aviso.
+
 ### Dónde se guardan los datos
 
 En `~/.local/share/albion-companion/data.json`. Se guarda solo, cada vez que haces un cambio. Copia ese archivo para llevar tu historial a otra PC.
