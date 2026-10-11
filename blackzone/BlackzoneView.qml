@@ -59,8 +59,8 @@ Column {
 
   readonly property var enchantOptions: [0, 1, 2, 3, 4].map(function(e) { return { value: String(e), label: "." + e } })
   readonly property var qualityOptions: [
-    { value: "1", label: "Normal" }, { value: "2", label: "Bueno" }, { value: "3", label: "Sobresaliente" },
-    { value: "4", label: "Excelente" }, { value: "5", label: "Obra maestra" }
+    { value: "1", label: "Normal" }, { value: "2", label: "Bueno" }, { value: "3", label: "Notable" },
+    { value: "4", label: "Sobresaliente" }, { value: "5", label: "Obra maestra" }
   ]
 
   spacing: Style.space(14)

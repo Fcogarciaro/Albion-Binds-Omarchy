@@ -88,3 +88,13 @@ The user wants to know whether black zone runs pay off. Albion exposes neither d
 - RDD off (global). `gentle-ai review assess --base-ref main --committed-only` (untracked `.atl/` excluded): risk medium (executable_change), 2478 changed lines; the generated catalog is included in that count. Writer self-verification accepted (non-small model).
 - Branch exceeds the ~400-line budget; delivery stays `single-pr` as recorded.
 - Next step: user live test after merge/push.
+
+## Fix: quality labels (reported by user after live test)
+- Bug: the quality dropdown said 3 = "Sobresaliente" and 4 = "Excelente". "Notable" was missing.
+- Official ES-ES names come from ao-bin-dumps `localization.xml`, `@ITEMDETAILS_STATS_QUALITY_1..5`:
+  - 1 Normal
+  - 2 Bueno
+  - 3 Notable
+  - 4 Sobresaliente
+  - 5 Obra maestra
+- The stored numeric quality values did not change, only the labels.
