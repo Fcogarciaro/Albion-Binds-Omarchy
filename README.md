@@ -263,11 +263,11 @@ En la misma tarjeta puedes contar los **Tomos de conocimiento** que te cayeron, 
 
 Si pagas para llegar a zona negra (por ejemplo el portal SAFE), presiona **+ Gasto**, escribe lo que costó y una nota (si la dejas vacía se guarda como «Portal»). Los gastos se restan de la ganancia y aparecen como **Gastado** en el resumen y como filas «Gasto» en los movimientos.
 
-Si repites el mismo gasto, usa **↻ Repetir: Portal SAFE −12k** (debajo de los tres botones): un toque anota otro gasto con el mismo valor y nota, con la hora de ahora. El botón no aparece si todavía no hay ningún gasto. La tarjeta de gasto recuerda la última nota.
+Si repites el mismo gasto, usa **↻ Repetir: Portal SAFE −12k** (debajo de los tres botones): un toque anota otro gasto con el mismo valor y nota, con la hora de ahora. El botón no aparece si todavía no hay ningún gasto. La tarjeta de gasto siempre empieza vacía.
 
 ### Cosas que recuerda el plugin
 
-Para escribir menos, el plugin recuerda tu **ciudad** (la misma para Cultivos, el planificador y las muertes), el **último set** de muerte, la **última nota de gasto** y la **última pestaña**. Se guardan en `data.json` (sección `ui`), así que viajan contigo si sincronizas entre PCs.
+Para escribir menos, el plugin recuerda tu **ciudad** (la misma para Cultivos, el planificador y las muertes), el **último set** de muerte y la **última pestaña**. Se guardan en `data.json` (sección `ui`), así que viajan contigo si sincronizas entre PCs.
 
 Además recuerda la **última pestaña** abierta. En las tarjetas de captura, **Enter guarda** (en la de plantar y cosechar de Cultivos, Enter pasa al siguiente campo y guarda en el último). Al abrir una tarjeta, el cursor ya está en su primer campo.
 

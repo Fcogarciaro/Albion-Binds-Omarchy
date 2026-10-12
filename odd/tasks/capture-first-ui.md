@@ -85,3 +85,9 @@ Cut clicks and visual clutter. The user approved the layout on 2026-10-12.
 - Smoke (scratch `qs -p ~/.cache/qsl-cf`, fake store with seeded data; harness in `~/.cache/qsl-harness`): both views, narrow 380 and wide 940, load without errors; Panel.qml and Window.qml load Ready, Window instantiates, `ui.tab` read from disk and written by `DataStore.setTab` (temp HOME). Death flow fetched real prices through curl.
 - Default content heights (px, narrow 380 / wide 940, seeded: 3 plots, 2 sets, 5 events): Cultivos 653 -> 574 / 430 -> 359; Zona negra 728 -> 346 / 394 -> 280; Atajos unchanged. With a card open: Zona negra expense +176, loot +270.
 - Not verified: live shell (not installed here), real pointer/keyboard typing (focus checked via `editing` in an offscreen window), the visual look.
+
+## Fix: expense card no longer pre-fills the last note (user request 2026-10-12)
+- The user found that after saving an expense, the next one re-showed the previous note. Cause: `openComposer("expense")` filled the note from `ui.expenseNote`.
+- Fix: the prefill and the `rememberUi({ expenseNote })` write are removed, so the card always starts empty. Repeating an expense stays one tap through the "↻ Repetir" chip.
+- `ui.expenseNote` stays in Storage sanitizing, so existing files remain compatible.
+- QML only, so there is no pure logic to TDD. `npm test` 198/198, qmllint 0 errors.

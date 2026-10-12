@@ -306,7 +306,6 @@ Column {
     confirmKey = ""
     composer = kind
     if (kind === "death") prepareDeath("")
-    if (kind === "expense" && expenseNoteField.text === "") expenseNoteField.text = store.document.ui.expenseNote
     focusSoon(function() { return composer === kind }, function() { firstField(kind).forceActiveFocus() })
   }
 
@@ -460,7 +459,6 @@ Column {
     var value = Farm.parseSilver(expenseValueField.text)
     if (value === null || value <= 0) { errorText = "El gasto debe ser un número mayor que 0 (ej. 12k, 1.5m)."; return }
     if (commit(Bz.logExpense(blackzone, { value: value, note: expenseNoteField.text, now: Date.now(), id: newId("x") }))) {
-      rememberUi({ expenseNote: expenseNoteField.text.trim() })
       expenseValueField.text = ""
       expenseNoteField.text = ""
       saved()
