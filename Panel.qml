@@ -30,7 +30,8 @@ Panel {
   property string backupText: ""
   property bool backupFailed: false
   property string backupAction: ""
-  property string currentTab: "binds"
+  // Remembered in data.json (ui.tab), shared with the large window.
+  readonly property string currentTab: store.document.ui.tab
   readonly property bool editing: (currentTab === "binds" && bindsView.editing) || (currentTab === "farm" && farmView.editing)
     || (currentTab === "blackzone" && blackzoneView.editing)
 
@@ -209,7 +210,6 @@ Panel {
         anchors.top: parent.top
         spacing: Style.space(14)
 
-        // The selected tab lives in memory only.
         ButtonGroup {
           id: tabs
           options: [
@@ -222,7 +222,7 @@ Panel {
           foreground: root.bar.foreground
           fontFamily: root.bar.fontFamily
           fontSize: Style.font.bodySmall
-          onChanged: function(v) { root.currentTab = v }
+          onChanged: function(v) { root.store.setTab(v) }
         }
 
         Button {

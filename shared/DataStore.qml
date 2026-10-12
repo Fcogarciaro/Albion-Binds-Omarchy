@@ -51,6 +51,17 @@ Item {
     }
   }
 
+  // Remembers the open tab (ui.tab, "binds" | "farm" | "blackzone") so the bar
+  // panel and the large window reopen where the user left off.
+  function setTab(tab) {
+    if (tab !== "binds" && tab !== "farm" && tab !== "blackzone") return
+    if (document.ui.tab === tab) return
+    var next = Object.assign({}, document)
+    next.ui = Object.assign({}, document.ui, { tab: tab })
+    document = next
+    saveData()
+  }
+
   function writeNow() {
     var text = Store.serializeData(root.document)
     root.lastWritten = text

@@ -23,7 +23,9 @@ Item {
   property var manifest: null
 
   property bool opened: false
-  property string currentTab: "farm"
+  // Remembered in data.json (ui.tab), shared with the bar panel. The window has
+  // no Atajos tab: "binds" opens Cultivos.
+  readonly property string currentTab: DataStore.document.ui.tab === "blackzone" ? "blackzone" : "farm"
 
   readonly property bool editing: (currentTab === "farm" && farmView.editing)
     || (currentTab === "blackzone" && blackzoneView.editing)
@@ -84,7 +86,7 @@ Item {
       anchors.fill: parent
       blocked: root.editing
       onCloseRequested: root.dismiss()
-      onTabRequested: root.currentTab = root.currentTab === "farm" ? "blackzone" : "farm"
+      onTabRequested: DataStore.setTab(root.currentTab === "farm" ? "blackzone" : "farm")
 
       Rectangle {
         id: card
@@ -118,7 +120,6 @@ Item {
             font.bold: true
           }
 
-          // The selected tab lives in memory only.
           ButtonGroup {
             id: tabs
             anchors.horizontalCenter: parent.horizontalCenter
@@ -131,7 +132,7 @@ Item {
             foreground: viewOwner.bar.foreground
             fontFamily: viewOwner.bar.fontFamily
             fontSize: Style.font.bodySmall
-            onChanged: function(v) { root.currentTab = v }
+            onChanged: function(v) { DataStore.setTab(v) }
           }
 
           Button {
