@@ -50,12 +50,38 @@ Cut clicks and visual clutter. The user approved the layout on 2026-10-12.
 - Smoke-load in a scratch `qs -p`, wide and narrow.
 
 ## Tasks
-- [ ] U1: Pure helpers plus `ui.tab` (test-first). Route: delegated writer.
-- [ ] U2: Zona negra restructure. Route: same writer.
-- [ ] U3: Cultivos restructure. Route: same writer.
-- [ ] U4: Wide layout check, README screenshots/text updated to the new flow. Route: same writer.
+- [x] U1: Pure helpers plus `ui.tab` (test-first). Route: delegated writer.
+- [x] U2: Zona negra restructure. Route: same writer.
+- [x] U3: Cultivos restructure. Route: same writer.
+- [x] U4: Wide layout check, README screenshots/text updated to the new flow. Route: same writer.
 
 ## Delivery
 `single-pr` on branch `feat/capture-first-ui`. RDD is off (global).
 
 ## Progress / evidence
+
+### U1 (writer) - 9c5e54e
+- RED: 198 tests, 18 failing (new `plotState`/`plotStateLabel`/`ui.tab` tests plus the existing `ui` expectations now carrying `tab`). GREEN: 198/198 (was 189).
+- `Farm.GROWTH_MS` (22 h in ms: the log stores `Date.now()`), `Farm.plotState(farm, plotId, now)` -> `empty | planted | ready` (never `ready` without a valid clock), `Farm.plotStateLabel`. The brief said "Plantada" for the planted label; the approved layout says "Creciendo", so the label is "Creciendo" (state key stays `planted`).
+- `recentEvents(bz, n)` and `closedCycles(farm, n)` already existed: reused, extra tests for n = 3 (mixed types, fewer than n, no limit).
+- `ui.tab` in `Storage.uiOr`: "binds" | "farm" | "blackzone", anything else -> "binds"; old files load unchanged, `DATA_VERSION` stays 1.
+
+### U2 (writer) - 9e30ddb
+- New shared pieces in `components/`: `ComposeCard.qml` (bordered card, title, ✕) and `Stat.qml` (label over value).
+- `BlackzoneView`: summary (balance + Ganado/Perdido/Gastado) with "Guardado" at the right of the balance; actions + repeat chip; one compose card (`composer`); history 3 + "Ver todo"; "Mis sets (n)" collapsed. Old per-section Mostrar/Ocultar removed. Death card: set chips, auto price fetch on selection, remembered set, editable total (a late price answer no longer overwrites a typed total).
+- Lines changed exceed the ~400 heuristic (full restructure of a 1300-line view); not split artificially.
+- qmllint: missing-property + unqualified only (same categories as before), 0 errors. Delegate-id check: 0.
+
+### U3 (writer) - 46fac86
+- `FarmView`: summary (total + Parcelas/Creciendo/Listas), plot cards with state, one contextual button and a "⋯" area (two-tap Cancelar siembra / Eliminar parcela), one plant/harvest compose card below the plots (not inside the plot card: the field ids must stay outside the Repeater delegate), last 3 cycles + "Ver todo", collapsed Agregar parcela / Planificador / Impuesto. `nowMs` ticks every 60 s.
+
+### U4 (writer) - c0cc1bb, 66cbb8b
+- `DataStore.setTab(tab)`; Panel and Window read `store.document.ui.tab` (panel: Atajos|Cultivos|Zona negra; window: "binds" -> Cultivos), so both surfaces stay in sync through the shared store. `wide` layout: capture left, summary + full history (50 events / 20 cycles) right, no "Ver todo".
+- README: Cultivos and Zona negra sections, remembered tab, ventana grande text.
+
+### Checks
+- `npm test` 198/198. qmllint (`-I ~/.cache/qsl`): Panel 11 missing-property + 1 signal-handler-parameters, Window 13 + 1 uncreatable-type (identical to base); FarmView 46 + 138 unqualified, BlackzoneView 50 + 177 (same categories, more code); DataStore 1; components 3 each. 0 errors.
+- Delegate-id check (/tmp/delegate_ids.py: Panel, Window, FarmView, BlackzoneView, BindsView, components): 0.
+- Smoke (scratch `qs -p ~/.cache/qsl-cf`, fake store with seeded data; harness in `~/.cache/qsl-harness`): both views, narrow 380 and wide 940, load without errors; Panel.qml and Window.qml load Ready, Window instantiates, `ui.tab` read from disk and written by `DataStore.setTab` (temp HOME). Death flow fetched real prices through curl.
+- Default content heights (px, narrow 380 / wide 940, seeded: 3 plots, 2 sets, 5 events): Cultivos 653 -> 574 / 430 -> 359; Zona negra 728 -> 346 / 394 -> 280; Atajos unchanged. With a card open: Zona negra expense +176, loot +270.
+- Not verified: live shell (not installed here), real pointer/keyboard typing (focus checked via `editing` in an offscreen window), the visual look.
