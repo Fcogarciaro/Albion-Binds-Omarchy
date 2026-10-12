@@ -12,6 +12,8 @@ El panel tiene tres pestañas (y Cultivos y Zona negra también se abren en una 
 - **Cultivos**: bitácora de ganancias de tu isla (ver [Cultivos](#-cultivos)).
 - **Zona negra**: cuánta plata pierdes en muertes frente a cuánta ganas en cofres (ver la sección Zona negra más abajo).
 
+El panel (y la ventana grande) **se abre en la última pestaña que usaste**. Esa elección se guarda en `data.json` (`ui.tab`); en la ventana grande, que no tiene Atajos, se abre en Cultivos si tu última pestaña fue Atajos.
+
 > ¿Vienes de **Albion Binds**? Ve a [Migrar desde Albion Binds](#-migrar-desde-albion-binds).
 
 Ya viene con un atajo listo:
@@ -138,20 +140,30 @@ Los cambios se aplican al instante. No tienes que reiniciar nada.
 
 ## 🌾 Cultivos
 
-La pestaña **Cultivos** lleva la cuenta de lo que realmente ganas con tu isla. Albion no ofrece ninguna forma de leer el estado de la isla,
+La pestaña **Cultivos** está pensada para anotar rápido y verse poco: arriba el **resumen** (ganancia total y cuántas parcelas están creciendo o listas), debajo **una tarjeta por parcela**, luego los **últimos ciclos**, y al final, plegado, lo que casi no usas (agregar parcela, planificador e impuesto).
+
+Lleva la cuenta de lo que realmente ganas con tu isla. Albion no ofrece ninguna forma de leer el estado de la isla,
 así que **tú anotas cada ciclo** y el plugin calcula la ganancia.
 Cubre los cultivos de **T1 a T8** (zanahorias, frijoles, manojo de trigo, rábanos, coles, patatas, fardo de maíz y calabaza, con los nombres del juego en español). Hierbas y animales no están incluidos.
 
 ### Cómo anotar un ciclo
 
-1. Escribe el nombre de tu parcela y presiona **Agregar** (una vez por parcela).
-2. Cuando plantes, presiona **Plantar** en esa parcela. Elige el cultivo y anota cuántas semillas plantaste y a qué precio.
-3. Cuando coseches, presiona **Cosechar**. Anota cuántos cultivos salieron, cuántas semillas te devolvieron y a qué precio vendes cada cultivo.
-4. El ciclo pasa al **historial** con su ganancia, y las parcelas muestran su total.
+1. Abre **Agregar parcela ›** (al final de la pestaña), escribe el nombre y presiona **Agregar** (una vez por parcela).
+2. Cada parcela es una tarjeta con su **estado** y **un solo botón**:
+   - **Vacía** → botón **Plantar**.
+   - **Creciendo** (ya plantada) → botón **Cosechar**.
+   - **Lista para cosechar** (pasaron 22 horas desde que plantaste; el color de acento te avisa) → botón **Cosechar**.
+3. El botón abre **una tarjeta de captura** justo debajo de las parcelas (solo una a la vez; la parcela abierta queda resaltada). El cursor ya está en el primer campo:
+   - **Plantar**: elige el cultivo, cuántas semillas plantaste y a qué precio.
+   - **Cosechar**: cuántos cultivos salieron, cuántas semillas te devolvieron y a qué precio vendes cada cultivo.
+4. **Enter** pasa al siguiente campo y guarda en el último (o presiona **Guardar siembra** / **Guardar cosecha**). Al guardar, la tarjeta se cierra y ves un breve **✓ Guardado** junto al resumen. La **✕** cierra la tarjeta sin guardar.
+5. El ciclo pasa a **Últimos ciclos** (los 3 más recientes; **Ver todo ›** muestra más) y la parcela muestra su total.
+
+El estado «Creciendo / Lista» es una **estimación**: Albion no deja leer la isla, así que el plugin cuenta 22 horas desde la hora a la que anotaste la siembra.
 
 Cada parcela puede tener **un solo ciclo abierto** a la vez. Si se perdió la cosecha, anota 0 cultivos.
 
-Si te equivocas, puedes borrar: **Cancelar siembra** (ciclo abierto), **Eliminar** en una fila del historial, o **Eliminar parcela** (borra también sus ciclos). Pide confirmación: el primer toque cambia el botón a **¿Seguro?** y el segundo borra.
+Si te equivocas, puedes borrar: el botón **⋯** de cada parcela abre **Cancelar siembra** (ciclo abierto) y **Eliminar parcela** (borra también sus ciclos); **Eliminar** va en cada fila de los últimos ciclos. Pide confirmación: el primer toque cambia el botón a **¿Seguro?** y el segundo borra.
 
 ### Escribir cantidades de plata rápido
 
@@ -173,12 +185,12 @@ cultivos × precio × (1 − impuesto)  +  (semillas devueltas − semillas plan
 ```
 
 - Las semillas se valoran al precio que anotaste al plantar.
-- El **impuesto** por defecto es **6.5 %** (4 % con premium + 2.5 % de la orden de venta). Puedes cambiarlo al final de la pestaña.
+- El **impuesto** por defecto es **6.5 %** (4 % con premium + 2.5 % de la orden de venta). Puedes cambiarlo en **Impuesto de venta ›**, al final de la pestaña.
 - Las cifras se redondean a plata entera y solo cuentan los ciclos ya cosechados.
 
 ### Precio de mercado (opcional)
 
-El botón **Precio de mercado** rellena el precio con el más bajo en venta de la ciudad que elijas, usando los datos del
+En la tarjeta de captura, el botón **Precio de mercado** rellena el precio con el más bajo en venta de la ciudad que elijas, usando los datos del
 [Albion Online Data Project](https://www.albion-online-data.com/) (servidor América).
 
 - Esos datos los suben **otros jugadores**, así que pueden estar **desactualizados o faltar** (por ejemplo, las semillas de frijol casi nunca tienen precio).
@@ -187,7 +199,7 @@ El botón **Precio de mercado** rellena el precio con el más bajo en venta de l
 
 ### Planificador de rotación
 
-La sección **Planificador** (plegable, con el botón Mostrar/Ocultar) te ayuda a decidir qué plantar después. Con la ciudad que elijas, consulta de una sola vez los precios de todos los cultivos y semillas y ordena los cultivos de mayor a menor **ganancia esperada por parcela y ciclo**:
+La sección **Planificador ›** (plegada al final de la pestaña; tócala para abrirla) te ayuda a decidir qué plantar después. Con la ciudad que elijas, consulta de una sola vez los precios de todos los cultivos y semillas y ordena los cultivos de mayor a menor **ganancia esperada por parcela y ciclo**:
 
 ```
 semillas × cultivos por semilla × precio × (1 − impuesto)  +  (semillas devueltas − semillas por parcela) × precio de la semilla
@@ -211,9 +223,19 @@ Para tener el mismo historial en varias PCs, sigue [Sincronizar tus datos entre 
 La pestaña **Zona negra** te dice si tus salidas a zona negra **valen la pena**: compara la plata que pierdes cuando mueres (el valor de tu set) con la que ganas en cofres. Albion no ofrece ninguna forma de leer tus muertes ni tu botín,
 así que **tú anotas ambas cosas** y el plugin hace la cuenta.
 
+### Cómo está organizada
+
+De arriba abajo:
+
+1. **Resumen**: el balance (en rojo si es negativo) y tres cifras, **Ganado**, **Perdido** y **Gastado**, cada una con su cuenta.
+2. **Tres botones de captura**: **+ Botín**, **+ Gasto** y **✝ Muerte**. Si ya hay un gasto, debajo aparece **↻ Repetir: nota −valor**.
+3. **Una tarjeta de captura** (solo una a la vez) que se abre al tocar un botón. Tiene una **✕** para cerrarla, el cursor ya está en su primer campo y **Enter guarda**. Al guardar, la tarjeta se cierra y ves un breve **✓ Guardado** junto al balance.
+4. **Últimos movimientos**: siempre ves los 3 más recientes. **Ver todo ›** abre la lista más larga (sin abrirse sola nunca).
+5. **Mis sets (n) ›**, plegado al final. Ahí está el editor de sets.
+
 ### Crear un set
 
-1. En **SETS**, escribe un nombre (por ejemplo "Tanque T8") y presiona **Crear**.
+1. Abre **Mis sets (n) ›** (al final de la pestaña), escribe un nombre (por ejemplo "Tanque T8") y presiona **Crear**.
 2. Presiona **Editar** en ese set. Para cada pieza elige la **ranura** (cabeza, pecho, zapatos, arma principal, arma secundaria, capa, bolsa, montura, poción o comida), busca la pieza por nombre en la lista, y elige **nivel** (tier), **encantamiento** (.0 a .4) y **calidad** (de Normal a Obra maestra). Presiona **Agregar pieza**.
 3. En **poción** y **comida** no hay calidad, pero sí **cantidad** (cuántas llevas). Déjala vacía si es una sola.
 4. **Quitar** borra una pieza; **Renombrar** cambia el nombre del set.
@@ -222,32 +244,32 @@ La lista de piezas sale de los datos del juego (`ao-bin-dumps`) y viene guardada
 
 ### Registrar una muerte
 
-Atajo: presiona **Morí con este set** en la fila del set. Abre el formulario con ese set elegido y consulta los precios al instante.
+1. Presiona **✝ Muerte**. Tus sets aparecen como **botones**: toca el que llevabas. El plugin **recuerda el último** y lo deja elegido.
+2. Al elegir un set, el plugin **consulta solo los precios** de todas sus piezas en la **ciudad** de referencia (puedes cambiarla y presionar **Actualizar precios**). Cada pieza muestra su precio (× la cantidad), o **sin precio** si nadie lo reportó.
+3. El **total perdido** se rellena con la suma. Puedes **corregirlo a mano** (por ejemplo si faltaban precios o si no recuperaste todo); si ya lo escribiste, los precios que lleguen después no lo pisan.
+4. Presiona **Enter** o **Guardar muerte**. Si no hay precios, escribe el valor tú.
 
-1. Abre **REGISTRAR MUERTE**, elige el **set** que llevabas y la **ciudad** de referencia.
-2. Presiona **Consultar precios**: trae de una sola vez el precio de todas las piezas. Cada pieza muestra su precio (× la cantidad), o **sin precio** si nadie lo reportó.
-3. El **valor perdido** se rellena con la suma. Puedes **corregirlo a mano** (por ejemplo si faltaban precios o si no recuperaste todo).
-4. Presiona **Guardar muerte**. Si no consultaste precios, escribe el valor tú.
+Atajo: en **Mis sets**, **Morí con este set** abre la tarjeta de muerte con ese set elegido y consulta los precios al instante.
 
 Una muerte guarda una **foto de los precios** del momento: si el mercado cambia después, tu historial no se reescribe. Si faltó algún precio, aparece como **(parcial)** en el historial.
 
 ### Registrar un botín
 
-Abre **REGISTRAR BOTÍN**, escribe la plata que sacaste (lo que vale lo que vendiste o lo que te dio el cofre) y, si quieres, una nota. Presiona **Guardar botín**.
+Presiona **+ Botín**, escribe la plata que sacaste (lo que vale lo que vendiste o lo que te dio el cofre) y, si quieres, una nota. Presiona **Enter** o **Guardar botín**.
 
-En el mismo formulario puedes contar los **Tomos de conocimiento** que te cayeron, por nivel (T1 a T8). Solo se cuentan: no tienen valor en plata y no entran en la ganancia. El resumen muestra el total de cada nivel y el historial los anota en cada botín; puedes guardar un botín solo con tomos y sin plata.
+En la misma tarjeta puedes contar los **Tomos de conocimiento** que te cayeron, por nivel (T1 a T8). Solo se cuentan: no tienen valor en plata y no entran en la ganancia. El resumen muestra el total de cada nivel y el historial los anota en cada botín; puedes guardar un botín solo con tomos y sin plata.
 
 ### Registrar un gasto
 
-Si pagas para llegar a zona negra (por ejemplo el portal SAFE), abre **REGISTRAR GASTO**, escribe lo que costó y una nota (si la dejas vacía se guarda como «Portal»). Los gastos se restan de la ganancia y aparecen como **Gastado** en el resumen y como filas «Gasto» en el historial.
+Si pagas para llegar a zona negra (por ejemplo el portal SAFE), presiona **+ Gasto**, escribe lo que costó y una nota (si la dejas vacía se guarda como «Portal»). Los gastos se restan de la ganancia y aparecen como **Gastado** en el resumen y como filas «Gasto» en los movimientos.
 
-Si repites el mismo gasto, usa **Repetir: Portal SAFE −12k** (arriba del formulario): un toque anota otro gasto con el mismo valor y nota, con la hora de ahora. El botón no aparece si todavía no hay ningún gasto. El formulario recuerda la última nota.
+Si repites el mismo gasto, usa **↻ Repetir: Portal SAFE −12k** (debajo de los tres botones): un toque anota otro gasto con el mismo valor y nota, con la hora de ahora. El botón no aparece si todavía no hay ningún gasto. La tarjeta de gasto recuerda la última nota.
 
 ### Cosas que recuerda el plugin
 
-Para escribir menos, el plugin recuerda tu **ciudad** (la misma para Cultivos, el planificador y las muertes), el **último set** de muerte y la **última nota de gasto**. Se guardan en `data.json` (sección `ui`), así que viajan contigo si sincronizas entre PCs.
+Para escribir menos, el plugin recuerda tu **ciudad** (la misma para Cultivos, el planificador y las muertes), el **último set** de muerte, la **última nota de gasto** y la **última pestaña**. Se guardan en `data.json` (sección `ui`), así que viajan contigo si sincronizas entre PCs.
 
-En los formularios, **Enter guarda** (en los de varios campos de Cultivos, Enter pasa al siguiente y guarda en el último). Al abrir una sección, el cursor ya está en su primer campo.
+Además recuerda la **última pestaña** abierta. En las tarjetas de captura, **Enter guarda** (en la de plantar y cosechar de Cultivos, Enter pasa al siguiente campo y guarda en el último). Al abrir una tarjeta, el cursor ya está en su primer campo.
 
 ### Cómo se calcula la ganancia
 
@@ -255,14 +277,14 @@ En los formularios, **Enter guarda** (en los de varios campos de Cultivos, Enter
 ganancia = suma del botín − suma de las muertes − suma de los gastos
 ```
 
-- **Ganado** es la suma de tus botines, **Perdido** la suma del valor de tus muertes, **Gastado** la suma de tus gastos, y arriba ves el balance (en rojo si es negativo), el número de muertes y el botín medio por muerte.
+- **Ganado** es la suma de tus botines, **Perdido** la suma del valor de tus muertes, **Gastado** la suma de tus gastos, y arriba ves el balance (en rojo si es negativo). Cuando ya hay muertes, también se muestra el botín medio por muerte.
 - Cada set muestra cuántas veces murió y cuánto perdió. El botín no se asigna a un set, por eso la ganancia es total.
 - Los precios salen del [Albion Online Data Project](https://www.albion-online-data.com/) (servidor América): los suben **otros jugadores**, así que pueden estar **desactualizados o faltar**, sobre todo en calidades altas. Es solo una referencia: el valor final lo decides tú.
 
 ### Borrar
 
-- **Eliminar** en una fila del historial borra esa muerte o ese botín y cambia los totales.
-- **Eliminar set** (dentro de Editar) borra el set, pero **las muertes que ya registraste se quedan** con el nombre que tenía el set.
+- **Eliminar** en una fila de **Últimos movimientos** borra esa muerte, ese botín o ese gasto y cambia los totales.
+- **Eliminar set** (en **Mis sets**, dentro de Editar) borra el set, pero **las muertes que ya registraste se quedan** con el nombre que tenía el set.
 - Pide confirmación: el primer toque cambia el botón a **¿Seguro?** y el segundo borra.
 
 Los datos se guardan en el mismo `data.json` que Cultivos (ver [Dónde se guardan los datos](#dónde-se-guardan-los-datos)) y se sincronizan igual.
@@ -271,7 +293,7 @@ Los datos se guardan en el mismo `data.json` que Cultivos (ver [Dónde se guarda
 
 ## 🪟 Ventana grande
 
-El panel de la barra es angosto. Para anotar con más espacio hay una **ventana grande** (unos 1000×700, centrada en la pantalla) con las pestañas **Cultivos** y **Zona negra**. Los formularios quedan a la izquierda y el resumen y el historial a la derecha. Es la misma información que el panel: lo que anotes en uno aparece en el otro.
+El panel de la barra es angosto. Para anotar con más espacio hay una **ventana grande** (unos 1000×700, centrada en la pantalla) con las pestañas **Cultivos** y **Zona negra**. La **captura** (botones, tarjeta de captura y parcelas o sets) queda a la izquierda, y el **resumen** y el **historial completo** a la derecha; ahí el historial ya viene desplegado, sin «Ver todo». Se abre en la última pestaña que usaste. Es la misma información que el panel: lo que anotes en uno aparece en el otro.
 
 ### Cómo abrirla
 
