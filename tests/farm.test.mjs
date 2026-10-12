@@ -347,3 +347,46 @@ test("formatShort: shorthand when exact, grouped digits otherwise", () => {
   assert.equal(Farm.formatShort("x"), "-")
   for (const n of [0, 950, 1234, 12000, 12500, 1200000, 2000000, 1234567]) assert.equal(Farm.parseSilver(Farm.formatShort(n)), n, String(n))
 })
+
+const HOUR = 3600 * 1000
+
+test("plotState: empty without an open cycle, also for unknown plots", () => {
+  const farm = withPlot()
+  assert.equal(Farm.plotState(farm, "p1", 5000), "empty")
+  assert.equal(Farm.plotState(farm, "zzz", 5000), "empty")
+  const closed = ok(Farm.harvestCycle(withOpenCycle(), { cycleId: "c1", cropsHarvested: 1, seedsReturned: 0, cropPrice: 1, now: 2000 }))
+  assert.equal(Farm.plotState(closed, "p1", 5000), "empty")
+})
+
+test("plotState: planted while growing, ready once the 22 h growth time has passed", () => {
+  const farm = withOpenCycle()
+  assert.equal(Farm.GROWTH_MS, 22 * HOUR)
+  assert.equal(Farm.plotState(farm, "p1", 1000), "planted")
+  assert.equal(Farm.plotState(farm, "p1", 1000 + 22 * HOUR - 1), "planted")
+  assert.equal(Farm.plotState(farm, "p1", 1000 + 22 * HOUR), "ready")
+  assert.equal(Farm.plotState(farm, "p1", 1000 + 40 * HOUR), "ready")
+})
+
+test("plotState: a clock before plantedAt still reads as planted; no clock never reads as ready", () => {
+  const farm = withOpenCycle()
+  assert.equal(Farm.plotState(farm, "p1", 10), "planted")
+  assert.equal(Farm.plotState(farm, "p1"), "planted")
+  assert.equal(Farm.plotState(farm, "p1", NaN), "planted")
+})
+
+test("plotStateLabel: Spanish labels for every state", () => {
+  assert.equal(Farm.plotStateLabel("empty"), "Vacía")
+  assert.equal(Farm.plotStateLabel("planted"), "Creciendo")
+  assert.equal(Farm.plotStateLabel("ready"), "Lista para cosechar")
+  assert.equal(Farm.plotStateLabel("???"), "Vacía")
+})
+
+test("closedCycles(3): the three most recent harvests feed the short history", () => {
+  let farm = withPlot()
+  for (let n = 0; n < 5; n++) {
+    farm = ok(Farm.plantCycle(farm, { plotId: "p1", crop: "turnip", seedsPlanted: 1, seedPrice: 0, now: n * 10, id: "c" + n }))
+    farm = ok(Farm.harvestCycle(farm, { cycleId: "c" + n, cropsHarvested: 1, seedsReturned: 0, cropPrice: 1, now: n * 10 + 5 }))
+  }
+  assert.deepEqual(plain(Farm.closedCycles(farm, 3)).map((c) => c.id), ["c4", "c3", "c2"])
+  assert.equal(Farm.closedCycles(farm).length, 5)
+})

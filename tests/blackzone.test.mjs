@@ -207,6 +207,17 @@ test("recentEvents: newest first with an optional limit", () => {
   assert.deepEqual(plain(Bz.recentEvents(bz, 2)).map((e) => e.id), ["b", "c"])
 })
 
+test("recentEvents(3): mixed types, fewer entries than the limit, the full list when no limit", () => {
+  let bz = ok(Bz.logLoot(empty(), { value: 1, now: 1, id: "a" }))
+  assert.deepEqual(plain(Bz.recentEvents(bz, 3)).map((e) => e.id), ["a"])
+  bz = ok(Bz.logExpense(bz, { value: 5, note: "Portal", now: 2, id: "b" }))
+  bz = ok(Bz.logLoot(bz, { value: 1, now: 3, id: "c" }))
+  bz = ok(Bz.logExpense(bz, { value: 5, note: "Portal", now: 4, id: "d" }))
+  assert.deepEqual(plain(Bz.recentEvents(bz, 3)).map((e) => e.id), ["d", "c", "b"])
+  assert.equal(Bz.recentEvents(bz).length, 4)
+  assert.deepEqual(plain(Bz.recentEvents(empty(), 3)), [])
+})
+
 test("sanitizeBlackzone: keeps valid data unchanged", () => {
   let bz = withSet()
   bz = ok(Bz.logDeath(bz, { setId: "s1", now: 1, id: "e1", prices: { "T6_HEAD_PLATE_SET1@2:3": 100 } }))

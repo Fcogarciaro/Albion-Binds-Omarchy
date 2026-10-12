@@ -359,6 +359,26 @@ function formatShort(value) {
 
 // ---------- Queries ----------
 
+// Albion crops grow for 22 hours. The log stores timestamps in milliseconds
+// (Date.now()), so the constant is in ms.
+var GROWTH_MS = 22 * 60 * 60 * 1000
+
+// "empty" (no open cycle), "planted" (growing) or "ready" (the growth time has
+// passed since planting). now is injected (ms); without a valid clock a plot is
+// never reported ready.
+function plotState(farm, plotId, now) {
+  var cycle = openCycle(farm, plotId)
+  if (!cycle) return "empty"
+  if (typeof now === "number" && isFinite(now) && now - cycle.plantedAt >= GROWTH_MS) return "ready"
+  return "planted"
+}
+
+function plotStateLabel(state) {
+  if (state === "ready") return "Lista para cosechar"
+  if (state === "planted") return "Creciendo"
+  return "Vacía"
+}
+
 function openCycle(farm, plotId) {
   var f = normalizeFarm(farm)
   for (var i = 0; i < f.cycles.length; i++) {
