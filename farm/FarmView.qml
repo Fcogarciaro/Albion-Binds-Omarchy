@@ -5,8 +5,11 @@ import qs.Ui
 import "Farm.js" as Farm
 import "Prices.js" as Prices
 import "Planner.js" as Planner
+import "../components"
 
-// "Cultivos" tab: plots, plant/harvest forms, cycle history and totals.
+// "Cultivos" tab: capture first. Summary, one card per plot with a single
+// contextual button (Plantar / Cosechar) that opens its compose card, the latest
+// cycles and, collapsed at the bottom, add plot, planner and tax.
 // Data lives in owner.store (DataStore); every change is saved right away.
 Column {
   id: view
@@ -21,7 +24,23 @@ Column {
   readonly property var farm: store.document.farm
   readonly property real taxRate: farm.settings.taxRate
   readonly property var sums: Farm.totals(farm, taxRate)
-  readonly property var history: Farm.closedCycles(farm, 8)
+  // Latest cycles: 3 by default, more when expanded (always in the wide window).
+  readonly property bool historyExpanded: wide || historyAll
+  readonly property int historyLimit: historyExpanded ? (wide ? 20 : 8) : 3
+  readonly property var history: Farm.closedCycles(farm, historyLimit)
+  readonly property int closedCount: sums.overall.cycles
+  // Plots still growing / ready to harvest. nowMs ticks so "ready" shows up without a reload.
+  property real nowMs: Date.now()
+  readonly property int growingCount: countState("planted")
+  readonly property int readyCount: countState("ready")
+
+  // Brief confirmation after a save ("" = hidden); cleared by savedTimer.
+  property string savedText: ""
+  // "Ver todo" in the narrow panel.
+  property bool historyAll: false
+  // Secondary sections stay collapsed until asked for.
+  property bool addPlotOpen: false
+  property bool taxOpen: false
 
   // "" = no form open; otherwise the plot the form acts on.
   property string activePlotId: ""
@@ -51,6 +70,19 @@ Column {
   })
 
   spacing: Style.space(14)
+
+  function countState(state) {
+    var count = 0
+    for (var i = 0; i < farm.plots.length; i++)
+      if (Farm.plotState(farm, farm.plots[i].id, nowMs) === state) count++
+    return count
+  }
+
+  // Successful save: flashes "Guardado" (the form, if any, closes on its own).
+  function flashSaved() {
+    savedText = "Guardado"
+    savedTimer.restart()
+  }
 
   function plotName(id) {
     var plots = farm.plots
@@ -124,7 +156,9 @@ Column {
     if (commit(Farm.removeCycle(farm, cycleId)) && current && current.id === cycleId) closeForm()
   }
 
+  // Opens the plot's compose card; tapping its button again closes it.
   function openForm(plotId, mode) {
+    if (activePlotId === plotId && activeMode === mode) { closeForm(); return }
     confirmKey = ""
     activePlotId = plotId
     activeMode = mode
@@ -143,10 +177,19 @@ Column {
     activePlotId = ""
     errorText = ""
     priceText = ""
+    if (catcher) catcher.forceActiveFocus()
+  }
+
+  function saved() {
+    closeForm()
+    flashSaved()
   }
 
   function addPlot() {
-    if (commit(Farm.addPlot(farm, plotNameField.text, newId("p")))) plotNameField.text = ""
+    if (commit(Farm.addPlot(farm, plotNameField.text, newId("p")))) {
+      plotNameField.text = ""
+      flashSaved()
+    }
   }
 
   function plant() {
@@ -157,7 +200,7 @@ Column {
     if (commit(Farm.plantCycle(farm, {
       plotId: activePlotId, crop: plantCrop, seedsPlanted: seeds, seedPrice: price,
       now: Date.now(), id: newId("c")
-    }))) closeForm()
+    }))) saved()
   }
 
   function harvest() {
@@ -169,7 +212,7 @@ Column {
     if (commit(Farm.harvestCycle(farm, {
       cycleId: activeCycle ? activeCycle.id : "", cropsHarvested: crops, seedsReturned: returned,
       cropPrice: price, now: Date.now()
-    }))) closeForm()
+    }))) saved()
   }
 
   // Estimated profit shown while filling the harvest form.
@@ -188,7 +231,10 @@ Column {
   function saveTax() {
     var rate = Farm.parsePercent(taxField.text)
     if (rate === null) { errorText = "El impuesto debe ser un porcentaje entre 0 y 100."; return }
-    if (commit(Farm.setTaxRate(farm, rate))) taxField.text = Farm.formatPercent(rate)
+    if (commit(Farm.setTaxRate(farm, rate))) {
+      taxField.text = Farm.formatPercent(rate)
+      flashSaved()
+    }
   }
 
   // Market prefill: failures only set a message, logging is never blocked.
@@ -275,6 +321,19 @@ Column {
     seedsPlotField.text = String(seedsPerPlot)
   }
 
+  Timer {
+    id: savedTimer
+    interval: 2000
+    onTriggered: view.savedText = ""
+  }
+
+  Timer {
+    interval: 60000
+    repeat: true
+    running: view.visible
+    onTriggered: view.nowMs = Date.now()
+  }
+
   // An armed delete control disarms itself if the second tap never comes.
   Timer {
     id: confirmTimer
@@ -327,23 +386,69 @@ Column {
     width: parent.width
     spacing: Style.space(8)
 
-    PanelSectionHeader {
-      text: "CULTIVOS"
-      foreground: owner.bar.foreground
-      fontFamily: owner.bar.fontFamily
+    Item {
+      width: parent.width
+      implicitHeight: Math.max(totalText.implicitHeight, savedLabel.implicitHeight)
+
+      Text {
+        id: totalText
+        anchors.left: parent.left
+        anchors.right: savedLabel.visible ? savedLabel.left : parent.right
+        anchors.rightMargin: Style.space(8)
+        anchors.verticalCenter: parent.verticalCenter
+        textFormat: Text.PlainText
+        text: view.closedCount === 0
+          ? "Aún no hay ciclos cerrados."
+          : "Ganancia total: " + view.signed(view.sums.overall.profit) + " plata en " + view.closedCount + " ciclo(s)"
+        color: view.sums.overall.profit < 0 ? Color.urgent : owner.bar.foreground
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        font.bold: true
+        elide: Text.ElideRight
+      }
+
+      Text {
+        id: savedLabel
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        visible: view.savedText !== ""
+        textFormat: Text.PlainText
+        text: "✓ " + view.savedText
+        color: Color.accent
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        font.bold: true
+      }
     }
 
-    Text {
+    Row {
       width: parent.width
-      textFormat: Text.PlainText
-      text: sums.overall.cycles === 0
-        ? "Aún no hay ciclos cerrados."
-        : "Ganancia total: " + view.signed(sums.overall.profit) + " plata en " + sums.overall.cycles + " ciclo(s)"
-      color: sums.overall.profit < 0 ? Color.urgent : owner.bar.foreground
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.body
-      font.bold: true
-      wrapMode: Text.WordWrap
+      spacing: Style.space(8)
+
+      Stat {
+        width: (parent.width - 2 * parent.spacing) / 3
+        label: "Parcelas"
+        value: String(view.farm.plots.length)
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
+
+      Stat {
+        width: (parent.width - 2 * parent.spacing) / 3
+        label: "Creciendo"
+        value: String(view.growingCount)
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
+
+      Stat {
+        width: (parent.width - 2 * parent.spacing) / 3
+        label: "Listas"
+        value: String(view.readyCount)
+        valueColor: view.readyCount > 0 ? Color.accent : owner.bar.foreground
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
     }
   }
 
@@ -353,78 +458,134 @@ Column {
     width: parent.width
     spacing: Style.space(8)
 
-    PanelSectionHeader {
-      text: "PARCELAS"
-      foreground: owner.bar.foreground
-      fontFamily: owner.bar.fontFamily
-    }
-
     Text {
-      visible: farm.plots.length === 0
+      visible: view.farm.plots.length === 0
       width: parent.width
-      text: "Sin parcelas. Agrega una abajo."
+      text: "Sin parcelas. Agrega una en «Agregar parcela», abajo."
       color: owner.bar.foreground
       opacity: 0.6
       font.family: owner.bar.fontFamily
       font.pixelSize: Style.font.bodySmall
+      wrapMode: Text.WordWrap
     }
 
     Repeater {
-      model: farm.plots
+      model: view.farm.plots
 
-      Item {
+      BorderSurface {
         id: plotRow
         required property var modelData
         readonly property var cycle: Farm.openCycle(view.farm, modelData.id)
+        readonly property string plotStatus: Farm.plotState(view.farm, modelData.id, view.nowMs)
         readonly property var total: view.sums.byPlot[modelData.id]
+        readonly property bool formOpen: view.activePlotId === modelData.id
+        // The "⋯" area with the two-tap secondary actions.
+        property bool moreOpen: false
         width: parent.width
-        implicitHeight: Math.max(plotLabels.implicitHeight, plotButton.implicitHeight)
+        radius: Style.cornerRadius
+        color: plotRow.formOpen ? Style.selectedFill : Style.normalFill
+        borderSpec: Border.controlSpec("normal", owner.bar.foreground, Color.accent)
+        padding: Style.space(10)
+        implicitHeight: plotInner.implicitHeight + contentTopInset + contentBottomInset
 
         Column {
-          id: plotLabels
-          anchors.left: parent.left
-          anchors.right: plotButton.left
-          anchors.rightMargin: Style.space(8)
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(2)
+          id: plotInner
+          x: plotRow.contentLeftInset
+          y: plotRow.contentTopInset
+          width: plotRow.width - plotRow.contentLeftInset - plotRow.contentRightInset
+          spacing: Style.space(8)
 
-          Text {
-            textFormat: Text.PlainText
-            text: plotRow.modelData.name
-            color: owner.bar.foreground
-            font.family: owner.bar.fontFamily
-            font.pixelSize: Style.font.body
-            font.bold: true
-            elide: Text.ElideRight
+          Item {
             width: parent.width
-          }
+            implicitHeight: Math.max(plotLabels.implicitHeight, plotActions.implicitHeight)
 
-          Text {
-            textFormat: Text.PlainText
-            text: plotRow.cycle
-              ? view.cropName(plotRow.cycle.crop) + " · " + Farm.formatSilver(plotRow.cycle.seedsPlanted) + " semillas · desde " + view.shortDate(plotRow.cycle.plantedAt)
-              : "Libre"
-            color: owner.bar.foreground
-            opacity: 0.7
-            font.family: owner.bar.fontFamily
-            font.pixelSize: Style.font.caption
-            elide: Text.ElideRight
-            width: parent.width
-          }
+            Column {
+              id: plotLabels
+              anchors.left: parent.left
+              anchors.right: plotActions.left
+              anchors.rightMargin: Style.space(8)
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.space(2)
 
-          Text {
-            visible: plotRow.total !== undefined
-            textFormat: Text.PlainText
-            text: plotRow.total ? "Total: " + view.signed(plotRow.total.profit) + " · " + plotRow.total.cycles + " ciclo(s)" : ""
-            color: plotRow.total && plotRow.total.profit < 0 ? Color.urgent : owner.bar.foreground
-            opacity: 0.7
-            font.family: owner.bar.fontFamily
-            font.pixelSize: Style.font.caption
-            elide: Text.ElideRight
-            width: parent.width
+              Text {
+                textFormat: Text.PlainText
+                text: plotRow.modelData.name
+                color: owner.bar.foreground
+                font.family: owner.bar.fontFamily
+                font.pixelSize: Style.font.body
+                font.bold: true
+                elide: Text.ElideRight
+                width: parent.width
+              }
+
+              Text {
+                textFormat: Text.PlainText
+                text: Farm.plotStateLabel(plotRow.plotStatus) + (plotRow.cycle ? " · " + view.cropName(plotRow.cycle.crop) : "")
+                color: plotRow.plotStatus === "ready" ? Color.accent : owner.bar.foreground
+                opacity: plotRow.plotStatus === "empty" ? 0.6 : 1
+                font.family: owner.bar.fontFamily
+                font.pixelSize: Style.font.bodySmall
+                font.bold: plotRow.plotStatus === "ready"
+                elide: Text.ElideRight
+                width: parent.width
+              }
+
+              Text {
+                visible: plotRow.cycle !== null
+                textFormat: Text.PlainText
+                text: plotRow.cycle ? Farm.formatSilver(plotRow.cycle.seedsPlanted) + " semillas · desde " + view.shortDate(plotRow.cycle.plantedAt) : ""
+                color: owner.bar.foreground
+                opacity: 0.7
+                font.family: owner.bar.fontFamily
+                font.pixelSize: Style.font.caption
+                elide: Text.ElideRight
+                width: parent.width
+              }
+
+              Text {
+                visible: plotRow.total !== undefined
+                textFormat: Text.PlainText
+                text: plotRow.total ? "Total: " + view.signed(plotRow.total.profit) + " · " + plotRow.total.cycles + " ciclo(s)" : ""
+                color: plotRow.total && plotRow.total.profit < 0 ? Color.urgent : owner.bar.foreground
+                opacity: 0.7
+                font.family: owner.bar.fontFamily
+                font.pixelSize: Style.font.caption
+                elide: Text.ElideRight
+                width: parent.width
+              }
+            }
+
+            Row {
+              id: plotActions
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.space(4)
+
+              Button {
+                text: plotRow.cycle ? "Cosechar" : "Plantar"
+                width: Math.max(implicitWidth, Style.space(92))
+                selected: plotRow.formOpen
+                foreground: owner.bar.foreground
+                fontFamily: owner.bar.fontFamily
+                fontSize: Style.font.bodySmall
+                bordered: true
+                onClicked: view.openForm(plotRow.modelData.id, plotRow.cycle ? "harvest" : "plant")
+              }
+
+              Button {
+                text: "⋯"
+                tooltipText: "Más acciones"
+                selected: plotRow.moreOpen
+                foreground: owner.bar.foreground
+                fontFamily: owner.bar.fontFamily
+                fontSize: Style.font.bodySmall
+                onClicked: { view.confirmKey = ""; plotRow.moreOpen = !plotRow.moreOpen }
+              }
+            }
           }
 
           Row {
+            visible: plotRow.moreOpen
             spacing: Style.space(6)
 
             Button {
@@ -447,50 +608,287 @@ Column {
             }
           }
         }
+      }
+    }
+
+    // ---------- Plant / harvest compose card ----------
+    ComposeCard {
+      visible: view.activePlotId !== ""
+      width: parent.width
+      title: (view.activeMode === "plant" ? "Plantar · " : "Cosechar · ") + view.plotName(view.activePlotId)
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      onCloseRequested: view.closeForm()
+
+      Dropdown {
+        id: cropDropdown
+        visible: view.activeMode === "plant"
+        width: parent.width
+        label: "Cultivo"
+        value: view.plantCrop
+        options: view.cropOptions
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        onChanged: function(v) { view.plantCrop = v }
+      }
+
+      Text {
+        visible: view.activeMode === "harvest" && view.activeCycle !== null
+        width: parent.width
+        textFormat: Text.PlainText
+        text: view.activeCycle
+          ? view.cropName(view.activeCycle.crop) + " · " + Farm.formatSilver(view.activeCycle.seedsPlanted)
+            + " semillas a " + Farm.formatSilver(view.activeCycle.seedPrice) + " c/u"
+          : ""
+        color: owner.bar.foreground
+        opacity: 0.7
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+
+      TextField {
+        id: seedsField
+        visible: view.activeMode === "plant"
+        width: parent.width
+        placeholderText: "Semillas plantadas"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: seedPriceField.forceActiveFocus()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      TextField {
+        id: seedPriceField
+        visible: view.activeMode === "plant"
+        width: parent.width
+        placeholderText: "Precio por semilla (ej. 450k)"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: view.plant()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      TextField {
+        id: harvestedField
+        visible: view.activeMode === "harvest"
+        width: parent.width
+        placeholderText: "Cultivos cosechados"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: returnedField.forceActiveFocus()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      TextField {
+        id: returnedField
+        visible: view.activeMode === "harvest"
+        width: parent.width
+        placeholderText: "Semillas devueltas"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: cropPriceField.forceActiveFocus()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      TextField {
+        id: cropPriceField
+        visible: view.activeMode === "harvest"
+        width: parent.width
+        placeholderText: "Precio por cultivo (ej. 1.2k)"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: view.harvest()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      Row {
+        width: parent.width
+        spacing: Style.space(6)
+
+        Dropdown {
+          id: cityDropdown
+          width: parent.width - priceButton.width - parent.spacing
+          label: "Ciudad"
+          value: view.city
+          options: Prices.CITIES
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          onChanged: function(v) { view.setCity(v) }
+        }
 
         Button {
-          id: plotButton
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          text: plotRow.cycle ? "Cosechar" : "Plantar"
+          id: priceButton
+          text: "Precio de mercado"
+          anchors.verticalCenter: cityDropdown.verticalCenter
           foreground: owner.bar.foreground
           fontFamily: owner.bar.fontFamily
           fontSize: Style.font.bodySmall
           bordered: true
-          onClicked: view.openForm(plotRow.modelData.id, plotRow.cycle ? "harvest" : "plant")
+          onClicked: view.fetchPrice()
         }
       }
-    }
 
-    Row {
-      width: parent.width
-      spacing: Style.space(6)
-
-      TextField {
-        id: plotNameField
-        width: parent.width - addPlotButton.width - parent.spacing
-        placeholderText: "Nombre de la parcela"
+      Text {
+        visible: view.priceText !== ""
+        width: parent.width
+        textFormat: Text.PlainText
+        text: view.priceText
+        color: owner.bar.foreground
+        opacity: 0.7
         font.family: owner.bar.fontFamily
-        font.pixelSize: Style.font.body
-        foreground: owner.bar.foreground
-        onAccepted: view.addPlot()
-        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+
+      Text {
+        readonly property var preview: view.activeMode === "harvest" ? view.harvestPreview() : null
+        visible: preview !== null
+        width: parent.width
+        textFormat: Text.PlainText
+        text: preview !== null ? "Ganancia estimada: " + view.signed(preview) + " plata" : ""
+        color: preview !== null && preview < 0 ? Color.urgent : owner.bar.foreground
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        font.bold: true
       }
 
       Button {
-        id: addPlotButton
-        text: "Agregar"
-        anchors.verticalCenter: plotNameField.verticalCenter
+        text: view.activeMode === "plant" ? "Guardar siembra" : "Guardar cosecha"
         foreground: owner.bar.foreground
         fontFamily: owner.bar.fontFamily
         fontSize: Style.font.bodySmall
         bordered: true
-        onClicked: view.addPlot()
+        onClicked: view.activeMode === "plant" ? view.plant() : view.harvest()
       }
+    }
+
+    Text {
+      visible: view.errorText !== "" || view.store.error !== ""
+      width: parent.width
+      textFormat: Text.PlainText
+      text: view.errorText !== "" ? view.errorText : view.store.error
+      color: Color.urgent
+      font.family: owner.bar.fontFamily
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
     }
   }
 
-  // ---------- Rotation planner ----------
+  // ---------- Latest cycles ----------
+  Column {
+    parent: view.wide ? rightLane : view
+    width: parent.width
+    spacing: Style.space(8)
+
+    PanelSeparator { visible: !view.wide; foreground: owner.bar.foreground }
+
+    Item {
+      width: parent.width
+      implicitHeight: Math.max(historyHeader.implicitHeight, historyToggle.implicitHeight)
+
+      PanelSectionHeader {
+        id: historyHeader
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        text: view.wide ? "HISTORIAL" : "ÚLTIMOS CICLOS"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
+
+      Button {
+        id: historyToggle
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        visible: !view.wide && view.closedCount > 3
+        text: view.historyAll ? "Ver menos ‹" : "Ver todo ›"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.caption
+        onClicked: view.historyAll = !view.historyAll
+      }
+    }
+
+    Text {
+      visible: view.closedCount === 0
+      width: parent.width
+      text: "Aún no hay ciclos cerrados. Planta una parcela y cosecha para ver tu ganancia."
+      color: owner.bar.foreground
+      opacity: 0.6
+      font.family: owner.bar.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      wrapMode: Text.WordWrap
+    }
+
+    Repeater {
+      model: view.history
+
+      Item {
+        id: historyRow
+        required property var modelData
+        readonly property int profit: Farm.cycleProfit(modelData, view.taxRate)
+        width: parent.width
+        implicitHeight: Math.max(historyLabel.implicitHeight, historyProfit.implicitHeight, historyDelete.implicitHeight)
+
+        Text {
+          id: historyLabel
+          anchors.left: parent.left
+          anchors.right: historyProfit.left
+          anchors.rightMargin: Style.space(8)
+          anchors.verticalCenter: parent.verticalCenter
+          textFormat: Text.PlainText
+          text: view.shortDate(historyRow.modelData.harvestedAt) + " · " + view.plotName(historyRow.modelData.plotId)
+            + " · " + view.cropName(historyRow.modelData.crop)
+          color: owner.bar.foreground
+          font.family: owner.bar.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          elide: Text.ElideRight
+        }
+
+        Text {
+          id: historyProfit
+          anchors.right: historyDelete.left
+          anchors.rightMargin: Style.space(8)
+          anchors.verticalCenter: parent.verticalCenter
+          textFormat: Text.PlainText
+          text: view.signed(historyRow.profit)
+          color: historyRow.profit < 0 ? Color.urgent : owner.bar.foreground
+          font.family: owner.bar.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.bold: true
+        }
+
+        Button {
+          id: historyDelete
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          text: view.deleteLabel("hist:" + historyRow.modelData.id, "Eliminar")
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          fontSize: Style.font.caption
+          bordered: true
+          onClicked: view.askDelete("hist:" + historyRow.modelData.id, function() { view.removeCycle(historyRow.modelData.id) })
+        }
+      }
+    }
+
+    Text {
+      visible: view.historyExpanded && view.closedCount > view.historyLimit
+      width: parent.width
+      text: "Mostrando los últimos " + view.historyLimit + " de " + view.closedCount + "."
+      color: owner.bar.foreground
+      opacity: 0.6
+      font.family: owner.bar.fontFamily
+      font.pixelSize: Style.font.caption
+    }
+  }
+
+  // ---------- Collapsed at the bottom: add plot, planner, tax ----------
   Column {
     parent: view.wide ? leftLane : view
     width: parent.width
@@ -498,30 +896,57 @@ Column {
 
     PanelSeparator { foreground: owner.bar.foreground }
 
-    Item {
+    Button {
       width: parent.width
-      implicitHeight: Math.max(plannerHeader.implicitHeight, plannerToggle.implicitHeight)
+      leftAlign: true
+      text: "Agregar parcela " + (view.addPlotOpen ? "⌄" : "›")
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      fontSize: Style.font.bodySmall
+      onClicked: view.addPlotOpen = !view.addPlotOpen
+    }
 
-      PanelSectionHeader {
-        id: plannerHeader
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: "PLANIFICADOR"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-      }
+    Column {
+      visible: view.addPlotOpen
+      width: parent.width
+      spacing: Style.space(8)
 
-      Button {
-        id: plannerToggle
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        text: view.plannerOpen ? "Ocultar" : "Mostrar"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.caption
-        bordered: true
-        onClicked: view.togglePlanner()
+      Row {
+        width: parent.width
+        spacing: Style.space(6)
+
+        TextField {
+          id: plotNameField
+          width: parent.width - addPlotButton.width - parent.spacing
+          placeholderText: "Nombre de la parcela"
+          font.family: owner.bar.fontFamily
+          font.pixelSize: Style.font.body
+          foreground: owner.bar.foreground
+          onAccepted: view.addPlot()
+          Keys.onEscapePressed: view.catcher.forceActiveFocus()
+        }
+
+        Button {
+          id: addPlotButton
+          text: "Agregar"
+          anchors.verticalCenter: plotNameField.verticalCenter
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          fontSize: Style.font.bodySmall
+          bordered: true
+          onClicked: view.addPlot()
+        }
       }
+    }
+
+    Button {
+      width: parent.width
+      leftAlign: true
+      text: "Planificador " + (view.plannerOpen ? "⌄" : "›")
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      fontSize: Style.font.bodySmall
+      onClicked: view.togglePlanner()
     }
 
     Column {
@@ -709,313 +1134,58 @@ Column {
         wrapMode: Text.WordWrap
       }
     }
-  }
 
-  // ---------- Plant / harvest form ----------
-  Column {
-    parent: view.wide ? leftLane : view
-    visible: view.activePlotId !== ""
-    width: parent.width
-    spacing: Style.space(8)
-
-    PanelSeparator { foreground: owner.bar.foreground }
-
-    PanelSectionHeader {
-      text: (view.activeMode === "plant" ? "PLANTAR · " : "COSECHAR · ") + view.plotName(view.activePlotId).toUpperCase()
+    Button {
+      width: parent.width
+      leftAlign: true
+      text: "Impuesto de venta " + (view.taxOpen ? "⌄" : "›")
       foreground: owner.bar.foreground
       fontFamily: owner.bar.fontFamily
+      fontSize: Style.font.bodySmall
+      onClicked: view.taxOpen = !view.taxOpen
     }
 
-    Dropdown {
-      id: cropDropdown
-      visible: view.activeMode === "plant"
+    Column {
+      visible: view.taxOpen
       width: parent.width
-      label: "Cultivo"
-      value: view.plantCrop
-      options: view.cropOptions
-      foreground: owner.bar.foreground
-      fontFamily: owner.bar.fontFamily
-      onChanged: function(v) { view.plantCrop = v }
-    }
+      spacing: Style.space(8)
 
-    Text {
-      visible: view.activeMode === "harvest" && view.activeCycle !== null
-      width: parent.width
-      textFormat: Text.PlainText
-      text: view.activeCycle
-        ? view.cropName(view.activeCycle.crop) + " · " + Farm.formatSilver(view.activeCycle.seedsPlanted)
-          + " semillas a " + Farm.formatSilver(view.activeCycle.seedPrice) + " c/u"
-        : ""
-      color: owner.bar.foreground
-      opacity: 0.7
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.caption
-      wrapMode: Text.WordWrap
-    }
-
-    TextField {
-      id: seedsField
-      visible: view.activeMode === "plant"
-      width: parent.width
-      placeholderText: "Semillas plantadas"
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.body
-      foreground: owner.bar.foreground
-      onAccepted: seedPriceField.forceActiveFocus()
-      Keys.onEscapePressed: view.catcher.forceActiveFocus()
-    }
-
-    TextField {
-      id: seedPriceField
-      visible: view.activeMode === "plant"
-      width: parent.width
-      placeholderText: "Precio por semilla (ej. 450k)"
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.body
-      foreground: owner.bar.foreground
-      onAccepted: view.plant()
-      Keys.onEscapePressed: view.catcher.forceActiveFocus()
-    }
-
-    TextField {
-      id: harvestedField
-      visible: view.activeMode === "harvest"
-      width: parent.width
-      placeholderText: "Cultivos cosechados"
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.body
-      foreground: owner.bar.foreground
-      onAccepted: returnedField.forceActiveFocus()
-      Keys.onEscapePressed: view.catcher.forceActiveFocus()
-    }
-
-    TextField {
-      id: returnedField
-      visible: view.activeMode === "harvest"
-      width: parent.width
-      placeholderText: "Semillas devueltas"
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.body
-      foreground: owner.bar.foreground
-      onAccepted: cropPriceField.forceActiveFocus()
-      Keys.onEscapePressed: view.catcher.forceActiveFocus()
-    }
-
-    TextField {
-      id: cropPriceField
-      visible: view.activeMode === "harvest"
-      width: parent.width
-      placeholderText: "Precio por cultivo (ej. 1.2k)"
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.body
-      foreground: owner.bar.foreground
-      onAccepted: view.harvest()
-      Keys.onEscapePressed: view.catcher.forceActiveFocus()
-    }
-
-    Row {
-      width: parent.width
-      spacing: Style.space(6)
-
-      Dropdown {
-        id: cityDropdown
-        width: parent.width - priceButton.width - parent.spacing
-        label: "Ciudad"
-        value: view.city
-        options: Prices.CITIES
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        onChanged: function(v) { view.setCity(v) }
-      }
-
-      Button {
-        id: priceButton
-        text: "Precio de mercado"
-        anchors.verticalCenter: cityDropdown.verticalCenter
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.bodySmall
-        bordered: true
-        onClicked: view.fetchPrice()
-      }
-    }
-
-    Text {
-      visible: view.priceText !== ""
-      width: parent.width
-      textFormat: Text.PlainText
-      text: view.priceText
-      color: owner.bar.foreground
-      opacity: 0.7
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.caption
-      wrapMode: Text.WordWrap
-    }
-
-    Text {
-      readonly property var preview: view.activeMode === "harvest" ? view.harvestPreview() : null
-      visible: preview !== null
-      width: parent.width
-      textFormat: Text.PlainText
-      text: preview !== null ? "Ganancia estimada: " + view.signed(preview) + " plata" : ""
-      color: preview !== null && preview < 0 ? Color.urgent : owner.bar.foreground
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      font.bold: true
-    }
-
-    Row {
-      spacing: Style.space(6)
-
-      Button {
-        text: view.activeMode === "plant" ? "Plantar" : "Cosechar"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.bodySmall
-        bordered: true
-        onClicked: view.activeMode === "plant" ? view.plant() : view.harvest()
-      }
-
-      Button {
-        text: "Cancelar"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.bodySmall
-        bordered: true
-        onClicked: view.closeForm()
-      }
-    }
-  }
-
-  Text {
-    parent: view.wide ? leftLane : view
-    visible: view.errorText !== "" || view.store.error !== ""
-    width: parent.width
-    textFormat: Text.PlainText
-    text: view.errorText !== "" ? view.errorText : view.store.error
-    color: Color.urgent
-    font.family: owner.bar.fontFamily
-    font.pixelSize: Style.font.caption
-    wrapMode: Text.WordWrap
-  }
-
-  // ---------- History ----------
-  Column {
-    parent: view.wide ? rightLane : view
-    visible: view.history.length > 0
-    width: parent.width
-    spacing: Style.space(8)
-
-    PanelSeparator { foreground: owner.bar.foreground }
-
-    PanelSectionHeader {
-      text: "HISTORIAL"
-      foreground: owner.bar.foreground
-      fontFamily: owner.bar.fontFamily
-    }
-
-    Repeater {
-      model: view.history
-
-      Item {
-        id: historyRow
-        required property var modelData
-        readonly property int profit: Farm.cycleProfit(modelData, view.taxRate)
+      Row {
         width: parent.width
-        implicitHeight: Math.max(historyLabel.implicitHeight, historyProfit.implicitHeight, historyDelete.implicitHeight)
+        spacing: Style.space(6)
 
-        Text {
-          id: historyLabel
-          anchors.left: parent.left
-          anchors.right: historyProfit.left
-          anchors.rightMargin: Style.space(8)
-          anchors.verticalCenter: parent.verticalCenter
-          textFormat: Text.PlainText
-          text: view.shortDate(historyRow.modelData.harvestedAt) + " · " + view.plotName(historyRow.modelData.plotId)
-            + " · " + view.cropName(historyRow.modelData.crop)
-          color: owner.bar.foreground
+        TextField {
+          id: taxField
+          width: parent.width - taxButton.width - parent.spacing
+          placeholderText: "6.5"
           font.family: owner.bar.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          elide: Text.ElideRight
-        }
-
-        Text {
-          id: historyProfit
-          anchors.right: historyDelete.left
-          anchors.rightMargin: Style.space(8)
-          anchors.verticalCenter: parent.verticalCenter
-          textFormat: Text.PlainText
-          text: view.signed(historyRow.profit)
-          color: historyRow.profit < 0 ? Color.urgent : owner.bar.foreground
-          font.family: owner.bar.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.bold: true
+          font.pixelSize: Style.font.body
+          foreground: owner.bar.foreground
+          onAccepted: view.saveTax()
+          Keys.onEscapePressed: view.catcher.forceActiveFocus()
         }
 
         Button {
-          id: historyDelete
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          text: view.deleteLabel("hist:" + historyRow.modelData.id, "Eliminar")
+          id: taxButton
+          text: "Guardar"
+          anchors.verticalCenter: taxField.verticalCenter
           foreground: owner.bar.foreground
           fontFamily: owner.bar.fontFamily
-          fontSize: Style.font.caption
+          fontSize: Style.font.bodySmall
           bordered: true
-          onClicked: view.askDelete("hist:" + historyRow.modelData.id, function() { view.removeCycle(historyRow.modelData.id) })
+          onClicked: view.saveTax()
         }
       }
-    }
-  }
 
-  // ---------- Tax ----------
-  Column {
-    parent: view.wide ? leftLane : view
-    width: parent.width
-    spacing: Style.space(8)
-
-    PanelSeparator { foreground: owner.bar.foreground }
-
-    PanelSectionHeader {
-      text: "IMPUESTO DE VENTA (%)"
-      foreground: owner.bar.foreground
-      fontFamily: owner.bar.fontFamily
-    }
-
-    Row {
-      width: parent.width
-      spacing: Style.space(6)
-
-      TextField {
-        id: taxField
-        width: parent.width - taxButton.width - parent.spacing
-        placeholderText: "6.5"
+      Text {
+        width: parent.width
+        text: "6.5 % = 4 % de impuesto con premium + 2.5 % de orden de venta."
+        color: owner.bar.foreground
+        opacity: 0.6
         font.family: owner.bar.fontFamily
-        font.pixelSize: Style.font.body
-        foreground: owner.bar.foreground
-        onAccepted: view.saveTax()
-        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
       }
-
-      Button {
-        id: taxButton
-        text: "Guardar"
-        anchors.verticalCenter: taxField.verticalCenter
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.bodySmall
-        bordered: true
-        onClicked: view.saveTax()
-      }
-    }
-
-    Text {
-      width: parent.width
-      text: "6.5 % = 4 % de impuesto con premium + 2.5 % de orden de venta."
-      color: owner.bar.foreground
-      opacity: 0.6
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.caption
-      wrapMode: Text.WordWrap
     }
   }
 }
