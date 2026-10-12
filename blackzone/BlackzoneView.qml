@@ -6,8 +6,11 @@ import "Blackzone.js" as Bz
 import "GearCatalog.js" as Catalog
 import "../farm/Farm.js" as Farm
 import "../farm/Prices.js" as Prices
+import "../components"
 
-// "Zona negra" tab: gear sets, death and loot logging, profit summary.
+// "Zona negra" tab: capture first. Summary, three actions (botín, gasto,
+// muerte), one compose card at a time, the latest movements and, collapsed at
+// the bottom, the gear sets.
 // Data lives in owner.store (DataStore); every change is saved right away.
 Column {
   id: view
@@ -21,15 +24,21 @@ Column {
   readonly property var store: owner.store
   readonly property var blackzone: store.document.blackzone
   readonly property var sums: Bz.totals(blackzone)
-  readonly property var history: Bz.recentEvents(blackzone, 12)
+  // Latest movements: 3 by default, more when expanded (always in the wide window).
+  readonly property bool historyExpanded: wide || historyAll
+  readonly property int historyLimit: historyExpanded ? (wide ? 50 : 12) : 3
+  readonly property var history: Bz.recentEvents(blackzone, historyLimit)
+  readonly property int eventCount: blackzone.events.length
   readonly property var catalogIndex: buildCatalogIndex()
 
-  // Collapsible sections.
-  property bool setsOpen: true
-  property bool deathOpen: false
-  property bool lootOpen: false
-  property bool expenseOpen: false
-  property bool historyOpen: true
+  // The open compose card: "" (none), "loot", "expense" or "death". Only one at a time.
+  property string composer: ""
+  // Brief confirmation after a save ("" = hidden); cleared by savedTimer.
+  property string savedText: ""
+  // "Ver todo" in the narrow panel.
+  property bool historyAll: false
+  // "Mis sets" is collapsed until asked for.
+  property bool setsOpen: false
 
   property string errorText: ""
   // Delete control awaiting its second tap ("set:<id>", "piece:<n>", "ev:<id>").
@@ -54,6 +63,8 @@ Column {
   readonly property var lastExpense: Bz.lastExpense(blackzone)
   property var deathPrices: ({})
   property string priceText: ""
+  // The total was typed by hand: a late price answer must not overwrite it.
+  property bool deathValueTouched: false
   // A price request was asked for while another one was still running.
   property bool priceQueued: false
   readonly property var deathSet: findSet(deathSetId)
@@ -118,7 +129,7 @@ Column {
   readonly property bool editing: newSetField.activeFocus || editorBusy
     || tomeBusy || deathValueField.activeFocus || lootValueField.activeFocus || lootNoteField.activeFocus
     || expenseValueField.activeFocus || expenseNoteField.activeFocus
-    || deathSetDropdown.popupOpen || cityDropdown.popupOpen
+    || cityDropdown.popupOpen
 
   readonly property var enchantOptions: [0, 1, 2, 3, 4].map(function(e) { return { value: String(e), label: "." + e } })
   readonly property var qualityOptions: [
@@ -215,7 +226,8 @@ Column {
 
   function toggleSets() {
     setsOpen = !setsOpen
-    focusSoon(function() { return setsOpen }, function() { newSetField.forceActiveFocus() })
+    errorText = ""
+    confirmKey = ""
   }
 
   function addSet() {
@@ -285,19 +297,48 @@ Column {
     commit(Bz.removePiece(blackzone, editSetId, index))
   }
 
-  // ---------- Death ----------
+  // ---------- Compose cards ----------
 
-  function toggleDeath() {
-    deathOpen = !deathOpen
-    if (deathOpen && findSet(deathSetId) === null && blackzone.sets.length > 0) {
-      var remembered = findSet(store.document.ui.deathSetId)
-      setDeathSet(remembered ? remembered.id : blackzone.sets[0].id)
-    }
-    focusDeathValue()
+  // Opens the card for `kind`; tapping the open one closes it. The first field gets the focus.
+  function openComposer(kind) {
+    if (composer === kind) { closeComposer(); return }
+    errorText = ""
+    confirmKey = ""
+    composer = kind
+    if (kind === "death") prepareDeath("")
+    if (kind === "expense" && expenseNoteField.text === "") expenseNoteField.text = store.document.ui.expenseNote
+    focusSoon(function() { return composer === kind }, function() { firstField(kind).forceActiveFocus() })
   }
 
-  function focusDeathValue() {
-    focusSoon(function() { return deathOpen }, function() { deathValueField.forceActiveFocus() })
+  function firstField(kind) {
+    return kind === "death" ? deathValueField : kind === "expense" ? expenseValueField : lootValueField
+  }
+
+  function closeComposer() {
+    composer = ""
+    errorText = ""
+    if (catcher) catcher.forceActiveFocus()
+  }
+
+  // A successful save closes the card and flashes "Guardado".
+  function saved() {
+    savedText = "Guardado"
+    savedTimer.restart()
+    closeComposer()
+  }
+
+  // ---------- Death ----------
+
+  // Selects the wanted set (else the remembered one, else the first) and fetches its prices.
+  function prepareDeath(wantedId) {
+    var set = findSet(wantedId) || findSet(deathSetId) || findSet(store.document.ui.deathSetId)
+    if (!set && blackzone.sets.length > 0) set = blackzone.sets[0]
+    if (set) pickDeathSet(set.id)
+  }
+
+  function pickDeathSet(id) {
+    setDeathSet(id)
+    fetchDeathPrices()
   }
 
   function setDeathSet(id) {
@@ -305,16 +346,19 @@ Column {
     deathPrices = ({})
     priceText = ""
     deathValueField.text = ""
+    deathValueTouched = false
     priceQueued = false
     rememberUi({ deathSetId: id })
   }
 
-  // "Morí con este set": opens the death form on that set and fetches its prices.
+  // "Morí con este set": opens the death card on that set (prices are fetched on selection).
   function diedWithSet(setId) {
-    deathOpen = true
-    setDeathSet(setId)
-    fetchDeathPrices()
-    focusDeathValue()
+    errorText = ""
+    confirmKey = ""
+    composer = "death"
+    setsOpen = false
+    prepareDeath(setId)
+    focusSoon(function() { return composer === "death" }, function() { deathValueField.forceActiveFocus() })
   }
 
   function pricedValue() {
@@ -364,7 +408,7 @@ Column {
     var result = Prices.parseQualityPrices(text, priceProc.city, priceProc.keys)
     if (!result.ok) { priceText = "No pude consultar el mercado. Escribe el valor a mano."; return }
     deathPrices = result.prices
-    deathValueField.text = String(pricedValue())
+    if (!deathValueTouched) deathValueField.text = String(pricedValue())
     var missing = missingPrices()
     priceText = "Precios de " + priceProc.city + " (pueden estar desactualizados)."
       + (missing > 0 ? " " + missing + " pieza(s) sin precio: revisa el total." : "")
@@ -380,16 +424,12 @@ Column {
       deathPrices = ({})
       priceText = ""
       deathValueField.text = ""
-      deathOpen = false
+      deathValueTouched = false
+      saved()
     }
   }
 
   // ---------- Loot ----------
-
-  function toggleLoot() {
-    lootOpen = !lootOpen
-    focusSoon(function() { return lootOpen }, function() { lootValueField.forceActiveFocus() })
-  }
 
   function saveLoot() {
     var tomes = parseTomeInput()
@@ -401,24 +441,19 @@ Column {
       tomeFormCleared()
       lootValueField.text = ""
       lootNoteField.text = ""
-      lootOpen = false
+      saved()
     }
   }
 
   // ---------- Expenses ----------
 
-  // Opening the form prefills the last note; the value is always typed.
-  function toggleExpense() {
-    expenseOpen = !expenseOpen
-    if (expenseOpen && expenseNoteField.text === "") expenseNoteField.text = store.document.ui.expenseNote
-    focusSoon(function() { return expenseOpen }, function() { expenseValueField.forceActiveFocus() })
-  }
-
+  // Opening the expense card prefills the last note (openComposer); the value is always typed.
   // One tap re-logs the last expense: same value and note, new id and time.
   function repeatExpense() {
     var last = lastExpense
     if (!last) return
-    commit(Bz.logExpense(blackzone, { value: last.value, note: last.note, now: Date.now(), id: newId("x") }))
+    if (commit(Bz.logExpense(blackzone, { value: last.value, note: last.note, now: Date.now(), id: newId("x") })))
+      saved()
   }
 
   function saveExpense() {
@@ -428,7 +463,7 @@ Column {
       rememberUi({ expenseNote: expenseNoteField.text.trim() })
       expenseValueField.text = ""
       expenseNoteField.text = ""
-      expenseOpen = false
+      saved()
     }
   }
 
@@ -441,6 +476,12 @@ Column {
     id: confirmTimer
     interval: 4000
     onTriggered: view.confirmKey = ""
+  }
+
+  Timer {
+    id: savedTimer
+    interval: 2000
+    onTriggered: view.savedText = ""
   }
 
   Process {
@@ -459,8 +500,10 @@ Column {
     }
   }
 
-  // Large window: two lanes side by side. Sections below move into them when
-  // `wide`; otherwise they stay direct children of this Column, as before.
+  // Large window: two lanes side by side. Capture (actions, compose card, sets)
+  // goes left, the summary and the history go right. Sections below move into
+  // them when `wide`; otherwise they stay direct children of this Column, in
+  // declaration order: summary, actions, compose card, history, sets.
   Row {
     id: lanes
     visible: view.wide
@@ -486,31 +529,75 @@ Column {
     width: parent.width
     spacing: Style.space(8)
 
-    PanelSectionHeader {
-      text: "ZONA NEGRA"
-      foreground: owner.bar.foreground
-      fontFamily: owner.bar.fontFamily
+    Item {
+      width: parent.width
+      implicitHeight: Math.max(balanceText.implicitHeight, savedLabel.implicitHeight)
+
+      Text {
+        id: balanceText
+        anchors.left: parent.left
+        anchors.right: savedLabel.visible ? savedLabel.left : parent.right
+        anchors.rightMargin: Style.space(8)
+        anchors.verticalCenter: parent.verticalCenter
+        textFormat: Text.PlainText
+        text: (view.sums.profit > 0 ? "Ganancia: " : "Balance: ") + view.signed(view.sums.profit) + " plata"
+        color: view.sums.profit < 0 ? Color.urgent : owner.bar.foreground
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        font.bold: true
+        elide: Text.ElideRight
+      }
+
+      Text {
+        id: savedLabel
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        visible: view.savedText !== ""
+        textFormat: Text.PlainText
+        text: "✓ " + view.savedText
+        color: Color.accent
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        font.bold: true
+      }
+    }
+
+    Row {
+      width: parent.width
+      spacing: Style.space(8)
+
+      Stat {
+        width: (parent.width - 2 * parent.spacing) / 3
+        label: "Ganado (" + view.sums.loots + ")"
+        value: Farm.formatSilver(view.sums.loot)
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
+
+      Stat {
+        width: (parent.width - 2 * parent.spacing) / 3
+        label: "Perdido (" + view.sums.deaths + ")"
+        value: Farm.formatSilver(view.sums.lost)
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
+
+      Stat {
+        width: (parent.width - 2 * parent.spacing) / 3
+        label: "Gastado (" + view.sums.expenses + ")"
+        value: Farm.formatSilver(view.sums.spent)
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+      }
     }
 
     Text {
-      width: parent.width
-      textFormat: Text.PlainText
-      text: (view.sums.profit > 0 ? "Ganancia: " : "Balance: ") + view.signed(view.sums.profit) + " plata"
-      color: view.sums.profit < 0 ? Color.urgent : owner.bar.foreground
-      font.family: owner.bar.fontFamily
-      font.pixelSize: Style.font.body
-      font.bold: true
-      wrapMode: Text.WordWrap
-    }
-
-    Text {
-      width: parent.width
-      textFormat: Text.PlainText
-      text: "Ganado: " + Farm.formatSilver(view.sums.loot) + " (" + view.sums.loots + " botín/es)"
-        + "\nPerdido: " + Farm.formatSilver(view.sums.lost) + " (" + view.sums.deaths + " muerte(s))"
-        + "\nGastado: " + Farm.formatSilver(view.sums.spent) + " (" + view.sums.expenses + " gasto(s))"
-        + (view.sums.lootPerDeath !== null ? "\nBotín medio por muerte: " + Farm.formatSilver(view.sums.lootPerDeath) : "")
+      readonly property string detail: (view.sums.lootPerDeath !== null ? "Botín medio por muerte: " + Farm.formatSilver(view.sums.lootPerDeath) : "")
         + view.tomeSummary(view.sums.tomes)
+      visible: detail !== ""
+      width: parent.width
+      textFormat: Text.PlainText
+      text: detail.replace(/^\n/, "")
       color: owner.bar.foreground
       opacity: 0.7
       font.family: owner.bar.fontFamily
@@ -519,9 +606,364 @@ Column {
     }
   }
 
-  // ---------- Sets ----------
+  // ---------- Actions ----------
   Column {
     parent: view.wide ? leftLane : view
+    width: parent.width
+    spacing: Style.space(8)
+
+    Row {
+      width: parent.width
+      spacing: Style.space(8)
+
+      Button {
+        width: (parent.width - 2 * parent.spacing) / 3
+        text: "+ Botín"
+        selected: view.composer === "loot"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        onClicked: view.openComposer("loot")
+      }
+
+      Button {
+        width: (parent.width - 2 * parent.spacing) / 3
+        text: "+ Gasto"
+        selected: view.composer === "expense"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        onClicked: view.openComposer("expense")
+      }
+
+      Button {
+        width: (parent.width - 2 * parent.spacing) / 3
+        text: "✝ Muerte"
+        selected: view.composer === "death"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        onClicked: view.openComposer("death")
+      }
+    }
+
+    Button {
+      visible: view.lastExpense !== null
+      width: parent.width
+      text: view.lastExpense ? "↻ Repetir: " + view.lastExpense.note + " −" + Farm.formatShort(view.lastExpense.value) : ""
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      fontSize: Style.font.caption
+      onClicked: view.repeatExpense()
+    }
+  }
+
+  // ---------- Compose card (one at a time) ----------
+  Column {
+    parent: view.wide ? leftLane : view
+    visible: view.composer !== "" || (view.errorText !== "" && !view.setsOpen) || view.store.error !== ""
+    width: parent.width
+    spacing: Style.space(8)
+
+    ComposeCard {
+      visible: view.composer === "loot"
+      width: parent.width
+      title: "Botín"
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      onCloseRequested: view.closeComposer()
+
+      TextField {
+        id: lootValueField
+        width: parent.width
+        placeholderText: "Valor del botín (ej. 1.2m)"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: view.saveLoot()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      Text {
+        width: parent.width
+        textFormat: Text.PlainText
+        text: "Tomos de conocimiento (cantidad por nivel, sin valor en plata)"
+        color: owner.bar.foreground
+        opacity: 0.7
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+
+      Flow {
+        width: parent.width
+        spacing: Style.space(6)
+
+        Repeater {
+          model: Bz.TOME_TIERS
+
+          TextField {
+            id: tomeField
+            required property var modelData
+            width: (parent.width - 3 * Style.space(6)) / 4
+            placeholderText: "T" + modelData.tier
+            font.family: owner.bar.fontFamily
+            font.pixelSize: Style.font.body
+            foreground: owner.bar.foreground
+            onTextChanged: view.setTomeText(modelData.tier, text)
+            onAccepted: view.saveLoot()
+            onActiveFocusChanged: view.tomeBusy = activeFocus
+            Keys.onEscapePressed: view.catcher.forceActiveFocus()
+
+            Connections {
+              target: view
+              function onTomeFormCleared() { tomeField.text = "" }
+            }
+          }
+        }
+      }
+
+      TextField {
+        id: lootNoteField
+        width: parent.width
+        placeholderText: "Nota (opcional)"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: view.saveLoot()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      Button {
+        text: "Guardar botín"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        onClicked: view.saveLoot()
+      }
+    }
+
+    ComposeCard {
+      visible: view.composer === "expense"
+      width: parent.width
+      title: "Gasto"
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      onCloseRequested: view.closeComposer()
+
+      TextField {
+        id: expenseValueField
+        width: parent.width
+        placeholderText: "Gasto (ej. 12k)"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: view.saveExpense()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      TextField {
+        id: expenseNoteField
+        width: parent.width
+        placeholderText: "Portal SAFE"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onAccepted: view.saveExpense()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      Button {
+        text: "Guardar gasto"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        onClicked: view.saveExpense()
+      }
+    }
+
+    ComposeCard {
+      visible: view.composer === "death"
+      width: parent.width
+      title: "Muerte"
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      onCloseRequested: view.closeComposer()
+
+      Text {
+        visible: view.blackzone.sets.length === 0
+        width: parent.width
+        text: "Crea un set con piezas primero."
+        color: owner.bar.foreground
+        opacity: 0.6
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.bodySmall
+      }
+
+      Button {
+        visible: view.blackzone.sets.length === 0
+        text: "Crear un set"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        onClicked: { view.closeComposer(); view.setsOpen = true }
+      }
+
+      Flow {
+        visible: view.blackzone.sets.length > 0
+        width: parent.width
+        spacing: Style.space(6)
+
+        Repeater {
+          model: view.blackzone.sets
+
+          Button {
+            id: setChip
+            required property var modelData
+            text: modelData.name
+            selected: view.deathSetId === modelData.id
+            foreground: owner.bar.foreground
+            fontFamily: owner.bar.fontFamily
+            fontSize: Style.font.bodySmall
+            bordered: true
+            onClicked: view.pickDeathSet(setChip.modelData.id)
+          }
+        }
+      }
+
+      Row {
+        visible: view.blackzone.sets.length > 0
+        width: parent.width
+        spacing: Style.space(6)
+
+        Dropdown {
+          id: cityDropdown
+          width: parent.width - priceButton.width - parent.spacing
+          label: "Ciudad"
+          value: view.city
+          options: Prices.CITIES
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          onChanged: function(v) { view.setCity(v) }
+        }
+
+        Button {
+          id: priceButton
+          text: "Actualizar precios"
+          anchors.verticalCenter: cityDropdown.verticalCenter
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          fontSize: Style.font.bodySmall
+          bordered: true
+          onClicked: view.fetchDeathPrices()
+        }
+      }
+
+      Text {
+        visible: view.priceText !== ""
+        width: parent.width
+        textFormat: Text.PlainText
+        text: view.priceText
+        color: owner.bar.foreground
+        opacity: 0.7
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
+      }
+
+      Repeater {
+        model: view.deathSet ? view.deathSet.pieces : []
+
+        Item {
+          id: deathPiece
+          required property var modelData
+          readonly property var price: view.deathPrices[Bz.priceKey(modelData)]
+          width: parent.width
+          implicitHeight: Math.max(deathPieceText.implicitHeight, deathPiecePrice.implicitHeight)
+
+          Text {
+            id: deathPieceText
+            anchors.left: parent.left
+            anchors.right: deathPiecePrice.left
+            anchors.rightMargin: Style.space(8)
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: view.pieceLabel(deathPiece.modelData)
+            color: owner.bar.foreground
+            font.family: owner.bar.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            elide: Text.ElideRight
+          }
+
+          Text {
+            id: deathPiecePrice
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: typeof deathPiece.price === "number" ? Farm.formatSilver(deathPiece.price * deathPiece.modelData.quantity) : "sin precio"
+            color: owner.bar.foreground
+            opacity: typeof deathPiece.price === "number" ? 1 : 0.6
+            font.family: owner.bar.fontFamily
+            font.pixelSize: Style.font.bodySmall
+          }
+        }
+      }
+
+      Text {
+        visible: view.blackzone.sets.length > 0
+        width: parent.width
+        text: "Total perdido (editable)"
+        color: owner.bar.foreground
+        opacity: 0.7
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.caption
+      }
+
+      TextField {
+        id: deathValueField
+        visible: view.blackzone.sets.length > 0
+        width: parent.width
+        placeholderText: "Valor perdido (ej. 450k)"
+        font.family: owner.bar.fontFamily
+        font.pixelSize: Style.font.body
+        foreground: owner.bar.foreground
+        onTextEdited: view.deathValueTouched = true
+        onAccepted: view.saveDeath()
+        Keys.onEscapePressed: view.catcher.forceActiveFocus()
+      }
+
+      Button {
+        visible: view.blackzone.sets.length > 0
+        text: "Guardar muerte"
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        fontSize: Style.font.bodySmall
+        bordered: true
+        onClicked: view.saveDeath()
+      }
+    }
+
+    Text {
+      visible: view.errorText !== "" || view.store.error !== ""
+      width: parent.width
+      textFormat: Text.PlainText
+      text: view.errorText !== "" ? view.errorText : view.store.error
+      color: Color.urgent
+      font.family: owner.bar.fontFamily
+      font.pixelSize: Style.font.caption
+      wrapMode: Text.WordWrap
+    }
+  }
+
+  // ---------- Latest movements ----------
+  Column {
+    parent: view.wide ? rightLane : view
     width: parent.width
     spacing: Style.space(8)
 
@@ -529,28 +971,126 @@ Column {
 
     Item {
       width: parent.width
-      implicitHeight: Math.max(setsHeader.implicitHeight, setsToggle.implicitHeight)
+      implicitHeight: Math.max(historyHeader.implicitHeight, historyToggle.implicitHeight)
 
       PanelSectionHeader {
-        id: setsHeader
+        id: historyHeader
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        text: "SETS"
+        text: view.wide ? "HISTORIAL" : "ÚLTIMOS MOVIMIENTOS"
         foreground: owner.bar.foreground
         fontFamily: owner.bar.fontFamily
       }
 
       Button {
-        id: setsToggle
+        id: historyToggle
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        text: view.setsOpen ? "Ocultar" : "Mostrar"
+        visible: !view.wide && view.eventCount > 3
+        text: view.historyAll ? "Ver menos ‹" : "Ver todo ›"
         foreground: owner.bar.foreground
         fontFamily: owner.bar.fontFamily
         fontSize: Style.font.caption
-        bordered: true
-        onClicked: view.toggleSets()
+        onClicked: view.historyAll = !view.historyAll
       }
+    }
+
+    Text {
+      visible: view.eventCount === 0
+      width: parent.width
+      text: "Aún no hay movimientos. Registra un botín, un gasto o una muerte arriba."
+      color: owner.bar.foreground
+      opacity: 0.6
+      font.family: owner.bar.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      wrapMode: Text.WordWrap
+    }
+
+    Repeater {
+      model: view.history
+
+      Item {
+        id: historyRow
+        required property var modelData
+        readonly property bool isDeath: modelData.type === "death"
+        readonly property bool isExpense: modelData.type === "expense"
+        width: parent.width
+        implicitHeight: Math.max(historyLabel.implicitHeight, historyValue.implicitHeight, historyDelete.implicitHeight)
+
+        Text {
+          id: historyLabel
+          anchors.left: parent.left
+          anchors.right: historyValue.left
+          anchors.rightMargin: Style.space(8)
+          anchors.verticalCenter: parent.verticalCenter
+          textFormat: Text.PlainText
+          text: view.shortDate(historyRow.modelData.at) + " · "
+            + (historyRow.isDeath
+              ? "Muerte · " + historyRow.modelData.setName + (historyRow.modelData.partial ? " (parcial)" : "")
+              : historyRow.isExpense
+                ? "Gasto · " + historyRow.modelData.note
+                : "Botín" + (historyRow.modelData.note !== "" ? " · " + historyRow.modelData.note : "")
+                + (historyRow.modelData.tomes ? " · Tomos: " + view.tomesText(historyRow.modelData.tomes) : ""))
+          color: owner.bar.foreground
+          font.family: owner.bar.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          elide: Text.ElideRight
+        }
+
+        Text {
+          id: historyValue
+          anchors.right: historyDelete.left
+          anchors.rightMargin: Style.space(8)
+          anchors.verticalCenter: parent.verticalCenter
+          textFormat: Text.PlainText
+          text: view.signed(historyRow.isDeath || historyRow.isExpense ? -historyRow.modelData.value : historyRow.modelData.value)
+          color: historyRow.isDeath || historyRow.isExpense ? Color.urgent : owner.bar.foreground
+          font.family: owner.bar.fontFamily
+          font.pixelSize: Style.font.bodySmall
+          font.bold: true
+        }
+
+        Button {
+          id: historyDelete
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          text: view.deleteLabel("ev:" + historyRow.modelData.id, "Eliminar")
+          foreground: owner.bar.foreground
+          fontFamily: owner.bar.fontFamily
+          fontSize: Style.font.caption
+          bordered: true
+          onClicked: view.askDelete("ev:" + historyRow.modelData.id, function() { view.removeEvent(historyRow.modelData.id) })
+        }
+      }
+    }
+
+    Text {
+      visible: view.historyExpanded && view.eventCount > view.historyLimit
+      width: parent.width
+      text: "Mostrando los últimos " + view.historyLimit + " de " + view.eventCount + "."
+      color: owner.bar.foreground
+      opacity: 0.6
+      font.family: owner.bar.fontFamily
+      font.pixelSize: Style.font.caption
+    }
+  }
+
+  // ---------- My sets (collapsed) ----------
+  Column {
+    parent: view.wide ? leftLane : view
+    width: parent.width
+    spacing: Style.space(8)
+
+    PanelSeparator { foreground: owner.bar.foreground }
+
+    Button {
+      width: parent.width
+      leftAlign: true
+      text: "Mis sets (" + view.blackzone.sets.length + ") " + (view.setsOpen ? "⌄" : "›")
+      foreground: owner.bar.foreground
+      fontFamily: owner.bar.fontFamily
+      fontSize: Style.font.bodySmall
+      onClicked: view.toggleSets()
     }
 
     Column {
@@ -865,469 +1405,16 @@ Column {
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
       }
-    }
-  }
-
-  // ---------- Death ----------
-  Column {
-    parent: view.wide ? leftLane : view
-    width: parent.width
-    spacing: Style.space(8)
-
-    PanelSeparator { foreground: owner.bar.foreground }
-
-    Item {
-      width: parent.width
-      implicitHeight: Math.max(deathHeader.implicitHeight, deathToggle.implicitHeight)
-
-      PanelSectionHeader {
-        id: deathHeader
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: "REGISTRAR MUERTE"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-      }
-
-      Button {
-        id: deathToggle
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        text: view.deathOpen ? "Ocultar" : "Mostrar"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.caption
-        bordered: true
-        onClicked: view.toggleDeath()
-      }
-    }
-
-    Column {
-      visible: view.deathOpen
-      width: parent.width
-      spacing: Style.space(8)
 
       Text {
-        visible: view.blackzone.sets.length === 0
-        width: parent.width
-        text: "Crea un set con piezas primero."
-        color: owner.bar.foreground
-        opacity: 0.6
-        font.family: owner.bar.fontFamily
-        font.pixelSize: Style.font.bodySmall
-      }
-
-      Column {
-        visible: view.blackzone.sets.length > 0
-        width: parent.width
-        spacing: Style.space(8)
-
-        Dropdown {
-          id: deathSetDropdown
-          width: parent.width
-          label: "Set"
-          value: view.deathSetId
-          options: view.blackzone.sets.map(function(s) { return { value: s.id, label: s.name } })
-          foreground: owner.bar.foreground
-          fontFamily: owner.bar.fontFamily
-          onChanged: function(v) { view.setDeathSet(v) }
-        }
-
-        Row {
-          width: parent.width
-          spacing: Style.space(6)
-
-          Dropdown {
-            id: cityDropdown
-            width: parent.width - priceButton.width - parent.spacing
-            label: "Ciudad"
-            value: view.city
-            options: Prices.CITIES
-            foreground: owner.bar.foreground
-            fontFamily: owner.bar.fontFamily
-            onChanged: function(v) { view.setCity(v) }
-          }
-
-          Button {
-            id: priceButton
-            text: "Consultar precios"
-            anchors.verticalCenter: cityDropdown.verticalCenter
-            foreground: owner.bar.foreground
-            fontFamily: owner.bar.fontFamily
-            fontSize: Style.font.bodySmall
-            bordered: true
-            onClicked: view.fetchDeathPrices()
-          }
-        }
-
-        Text {
-          visible: view.priceText !== ""
-          width: parent.width
-          textFormat: Text.PlainText
-          text: view.priceText
-          color: owner.bar.foreground
-          opacity: 0.7
-          font.family: owner.bar.fontFamily
-          font.pixelSize: Style.font.caption
-          wrapMode: Text.WordWrap
-        }
-
-        Repeater {
-          model: view.deathSet ? view.deathSet.pieces : []
-
-          Item {
-            id: deathPiece
-            required property var modelData
-            readonly property var price: view.deathPrices[Bz.priceKey(modelData)]
-            width: parent.width
-            implicitHeight: Math.max(deathPieceText.implicitHeight, deathPiecePrice.implicitHeight)
-
-            Text {
-              id: deathPieceText
-              anchors.left: parent.left
-              anchors.right: deathPiecePrice.left
-              anchors.rightMargin: Style.space(8)
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: view.pieceLabel(deathPiece.modelData)
-              color: owner.bar.foreground
-              font.family: owner.bar.fontFamily
-              font.pixelSize: Style.font.bodySmall
-              elide: Text.ElideRight
-            }
-
-            Text {
-              id: deathPiecePrice
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: typeof deathPiece.price === "number" ? Farm.formatSilver(deathPiece.price * deathPiece.modelData.quantity) : "sin precio"
-              color: owner.bar.foreground
-              opacity: typeof deathPiece.price === "number" ? 1 : 0.6
-              font.family: owner.bar.fontFamily
-              font.pixelSize: Style.font.bodySmall
-            }
-          }
-        }
-
-        TextField {
-          id: deathValueField
-          width: parent.width
-          placeholderText: "Valor perdido (ej. 450k)"
-          font.family: owner.bar.fontFamily
-          font.pixelSize: Style.font.body
-          foreground: owner.bar.foreground
-          onAccepted: view.saveDeath()
-          Keys.onEscapePressed: view.catcher.forceActiveFocus()
-        }
-
-        Button {
-          text: "Guardar muerte"
-          foreground: owner.bar.foreground
-          fontFamily: owner.bar.fontFamily
-          fontSize: Style.font.bodySmall
-          bordered: true
-          onClicked: view.saveDeath()
-        }
-      }
-    }
-  }
-
-  // ---------- Loot ----------
-  Column {
-    parent: view.wide ? leftLane : view
-    width: parent.width
-    spacing: Style.space(8)
-
-    PanelSeparator { foreground: owner.bar.foreground }
-
-    Item {
-      width: parent.width
-      implicitHeight: Math.max(lootHeader.implicitHeight, lootToggle.implicitHeight)
-
-      PanelSectionHeader {
-        id: lootHeader
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: "REGISTRAR BOTÍN"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-      }
-
-      Button {
-        id: lootToggle
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        text: view.lootOpen ? "Ocultar" : "Mostrar"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.caption
-        bordered: true
-        onClicked: view.toggleLoot()
-      }
-    }
-
-    Column {
-      visible: view.lootOpen
-      width: parent.width
-      spacing: Style.space(8)
-
-      TextField {
-        id: lootValueField
-        width: parent.width
-        placeholderText: "Valor del botín (ej. 1.2m)"
-        font.family: owner.bar.fontFamily
-        font.pixelSize: Style.font.body
-        foreground: owner.bar.foreground
-        onAccepted: view.saveLoot()
-        Keys.onEscapePressed: view.catcher.forceActiveFocus()
-      }
-
-      Text {
+        visible: view.errorText !== "" && view.composer === ""
         width: parent.width
         textFormat: Text.PlainText
-        text: "Tomos de conocimiento (cantidad por nivel, sin valor en plata)"
-        color: owner.bar.foreground
-        opacity: 0.7
+        text: view.errorText
+        color: Color.urgent
         font.family: owner.bar.fontFamily
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
-      }
-
-      Flow {
-        width: parent.width
-        spacing: Style.space(6)
-
-        Repeater {
-          model: Bz.TOME_TIERS
-
-          TextField {
-            id: tomeField
-            required property var modelData
-            width: (parent.width - 3 * Style.space(6)) / 4
-            placeholderText: "T" + modelData.tier
-            font.family: owner.bar.fontFamily
-            font.pixelSize: Style.font.body
-            foreground: owner.bar.foreground
-            onTextChanged: view.setTomeText(modelData.tier, text)
-            onAccepted: view.saveLoot()
-            onActiveFocusChanged: view.tomeBusy = activeFocus
-            Keys.onEscapePressed: view.catcher.forceActiveFocus()
-
-            Connections {
-              target: view
-              function onTomeFormCleared() { tomeField.text = "" }
-            }
-          }
-        }
-      }
-
-      TextField {
-        id: lootNoteField
-        width: parent.width
-        placeholderText: "Nota (opcional)"
-        font.family: owner.bar.fontFamily
-        font.pixelSize: Style.font.body
-        foreground: owner.bar.foreground
-        onAccepted: view.saveLoot()
-        Keys.onEscapePressed: view.catcher.forceActiveFocus()
-      }
-
-      Button {
-        text: "Guardar botín"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.bodySmall
-        bordered: true
-        onClicked: view.saveLoot()
-      }
-    }
-  }
-
-  // ---------- Expenses ----------
-  Column {
-    parent: view.wide ? leftLane : view
-    width: parent.width
-    spacing: Style.space(8)
-
-    PanelSeparator { foreground: owner.bar.foreground }
-
-    Item {
-      width: parent.width
-      implicitHeight: Math.max(expenseHeader.implicitHeight, expenseToggle.implicitHeight)
-
-      PanelSectionHeader {
-        id: expenseHeader
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: "REGISTRAR GASTO"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-      }
-
-      Button {
-        id: expenseToggle
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        text: view.expenseOpen ? "Ocultar" : "Mostrar"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.caption
-        bordered: true
-        onClicked: view.toggleExpense()
-      }
-    }
-
-    Button {
-      visible: view.lastExpense !== null
-      text: view.lastExpense ? "Repetir: " + view.lastExpense.note + " −" + Farm.formatShort(view.lastExpense.value) : ""
-      foreground: owner.bar.foreground
-      fontFamily: owner.bar.fontFamily
-      fontSize: Style.font.bodySmall
-      bordered: true
-      onClicked: view.repeatExpense()
-    }
-
-    Column {
-      visible: view.expenseOpen
-      width: parent.width
-      spacing: Style.space(8)
-
-      TextField {
-        id: expenseValueField
-        width: parent.width
-        placeholderText: "Gasto (ej. 12k)"
-        font.family: owner.bar.fontFamily
-        font.pixelSize: Style.font.body
-        foreground: owner.bar.foreground
-        onAccepted: view.saveExpense()
-        Keys.onEscapePressed: view.catcher.forceActiveFocus()
-      }
-
-      TextField {
-        id: expenseNoteField
-        width: parent.width
-        placeholderText: "Portal SAFE"
-        font.family: owner.bar.fontFamily
-        font.pixelSize: Style.font.body
-        foreground: owner.bar.foreground
-        onAccepted: view.saveExpense()
-        Keys.onEscapePressed: view.catcher.forceActiveFocus()
-      }
-
-      Button {
-        text: "Guardar gasto"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.bodySmall
-        bordered: true
-        onClicked: view.saveExpense()
-      }
-    }
-  }
-
-  Text {
-    parent: view.wide ? leftLane : view
-    visible: view.errorText !== "" || view.store.error !== ""
-    width: parent.width
-    textFormat: Text.PlainText
-    text: view.errorText !== "" ? view.errorText : view.store.error
-    color: Color.urgent
-    font.family: owner.bar.fontFamily
-    font.pixelSize: Style.font.caption
-    wrapMode: Text.WordWrap
-  }
-
-  // ---------- History ----------
-  Column {
-    parent: view.wide ? rightLane : view
-    visible: view.history.length > 0
-    width: parent.width
-    spacing: Style.space(8)
-
-    PanelSeparator { foreground: owner.bar.foreground }
-
-    Item {
-      width: parent.width
-      implicitHeight: Math.max(historyHeader.implicitHeight, historyToggle.implicitHeight)
-
-      PanelSectionHeader {
-        id: historyHeader
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: "HISTORIAL"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-      }
-
-      Button {
-        id: historyToggle
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        text: view.historyOpen ? "Ocultar" : "Mostrar"
-        foreground: owner.bar.foreground
-        fontFamily: owner.bar.fontFamily
-        fontSize: Style.font.caption
-        bordered: true
-        onClicked: view.historyOpen = !view.historyOpen
-      }
-    }
-
-    Repeater {
-      model: view.historyOpen ? view.history : []
-
-      Item {
-        id: historyRow
-        required property var modelData
-        readonly property bool isDeath: modelData.type === "death"
-        readonly property bool isExpense: modelData.type === "expense"
-        width: parent.width
-        implicitHeight: Math.max(historyLabel.implicitHeight, historyValue.implicitHeight, historyDelete.implicitHeight)
-
-        Text {
-          id: historyLabel
-          anchors.left: parent.left
-          anchors.right: historyValue.left
-          anchors.rightMargin: Style.space(8)
-          anchors.verticalCenter: parent.verticalCenter
-          textFormat: Text.PlainText
-          text: view.shortDate(historyRow.modelData.at) + " · "
-            + (historyRow.isDeath
-              ? "Muerte · " + historyRow.modelData.setName + (historyRow.modelData.partial ? " (parcial)" : "")
-              : historyRow.isExpense
-                ? "Gasto · " + historyRow.modelData.note
-                : "Botín" + (historyRow.modelData.note !== "" ? " · " + historyRow.modelData.note : "")
-                + (historyRow.modelData.tomes ? " · Tomos: " + view.tomesText(historyRow.modelData.tomes) : ""))
-          color: owner.bar.foreground
-          font.family: owner.bar.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          elide: Text.ElideRight
-        }
-
-        Text {
-          id: historyValue
-          anchors.right: historyDelete.left
-          anchors.rightMargin: Style.space(8)
-          anchors.verticalCenter: parent.verticalCenter
-          textFormat: Text.PlainText
-          text: view.signed(historyRow.isDeath || historyRow.isExpense ? -historyRow.modelData.value : historyRow.modelData.value)
-          color: historyRow.isDeath || historyRow.isExpense ? Color.urgent : owner.bar.foreground
-          font.family: owner.bar.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.bold: true
-        }
-
-        Button {
-          id: historyDelete
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          text: view.deleteLabel("ev:" + historyRow.modelData.id, "Eliminar")
-          foreground: owner.bar.foreground
-          fontFamily: owner.bar.fontFamily
-          fontSize: Style.font.caption
-          bordered: true
-          onClicked: view.askDelete("ev:" + historyRow.modelData.id, function() { view.removeEvent(historyRow.modelData.id) })
-        }
       }
     }
   }
