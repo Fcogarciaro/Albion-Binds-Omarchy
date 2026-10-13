@@ -45,7 +45,7 @@ Fix the defects found in the 2026-10-12 read-only audit and polish the UI. The u
 - [x] T4 `fix(panel)`: binds hardening.
   - `applyProc` uses the exit code and clears `errorText` on success.
   - `apply.sh` keeps symlinks and cleans up its temp file with a trap.
-- [ ] T5 `refactor(ui)`: shared components and visual polish.
+- [x] T5 `refactor(ui)`: shared components and visual polish.
   - Extract shared components and split FarmView and BlackzoneView.
   - Two muted tokens and a consistent spacing rhythm.
   - Fix the rename field after a set rebuild.
@@ -79,5 +79,16 @@ Fix the defects found in the 2026-10-12 read-only audit and polish the UI. The u
 - qmllint Panel: 11 missing-property + 1 signal-handler-parameters, identical to base. Tested only against temp dirs; the real ~/.config/hypr was never touched.
 - No `qs -p` smoke load was run for T1-T4 (QML-only edits verified by qmllint).
 
+### T5 (writer) - c766e1f, 21c23a4, 5ed6aa8
+- Tests (pure JS, test-first): RED 1 file failing (ViewHelpers missing) then 1 wrong expectation of mine fixed; GREEN `npm test` 219/219 (was 214). New: `shared/ViewHelpers.js` (`shortDate` dd/MM/yy, `newId`), `Farm.signed`.
+- c766e1f shared components in `components/`: ViewStyle (foreground/font, muted opacities 0.7 label and 0.6 secondary, spacing rhythm 4/8/12/16 via `Style.space`, one wide type scale 1.15), ViewText, ViewButton (roles action/compact/link/quiet = one font size per role), ViewField, FieldRow, ToggleRow, SectionToggle, HistoryRow, HistoryList, LaneLayout, DeleteConfirm, SavedNotice.
+- 21c23a4 FarmView 1260 -> 550 lines (state and logic) + PlotCard, PlantHarvestForm, FarmSummary, FarmAddPlot, FarmPlanner, FarmTax. BlackzoneView 1452 -> 560 + BzSummary, BzActions, LootCard, ExpenseCard, DeathCard, SetsSection, SetCard, PieceForm. T3 request-scoping code moved verbatim. Rename field fixed (filled on card creation, follows the set name unless focused). Copy: "Escribe el valor o los tomos.", dates with the year, unused `findSet` and stale expense-note comments removed. `ui.expenseNote` stays in Storage.
+- 5ed6aa8 Window: `Style.cornerRadius` on the card, scrim `Color.menu.scrim` (theme token; it is the background color at 50 %, no longer black), header on the wide scale; BindsView and Panel use the shared muted tokens and spacing.
+- qmllint (`-I ~/.cache/qsl`, 0 errors everywhere). Per file, base -> now: FarmView 186 -> 11, BlackzoneView 229 -> 0, Window 14 -> 8, Panel 12 -> 12, BindsView 79 -> 80 (one more `unqualified` from a `look` id inside a delegate). New files: only `unqualified` for ids inside delegates (max 13 in SetsSection).
+- Delegate-id check (/tmp/delegate_ids.py over Panel, Window, farm, blackzone, binds, components): 0.
+- Smoke (scratch `qs -p ~/.cache/qsl-cf`, HOME in the scratchpad with seeded fake data.json): Harness (FarmView + BlackzoneView narrow 380 and wide 940), FarmFlow, Flow, RenameFlow and Smoke (Panel and Window compile Ready, Window instantiated and loaded on both tabs from the seeded file) show no QML errors or warnings. Default heights narrow/wide: Cultivos 580/397, Zona negra 340/299 (before T5: 574/359 and 346/280; spacing 14 -> 12 and field gaps 6 -> 8). RenameFlow: field shows "Set pvp" after the card is rebuilt.
+- Not verified: the opened overlay window (it takes exclusive keyboard focus on the live compositor, so it was never mapped), real typing, the visual look of the wide scale and the scrim.
+- Judged out of scope: ComposeCard/Stat moved to the theme API in the same commit as the view split (both views use them), so the split is one commit. `setPlannerCity` wrapper removed (it only called `setCity`). Dropdown/SearchableDropdown have no font size property, so they do not scale in the wide window.
+
 ## Next step
-T5.
+User live test, then merge.
