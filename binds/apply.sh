@@ -13,8 +13,15 @@ legacy_comment='-- Albion Binds (plugin fcogarcia.albion-binds)'
 legacy_target="$hypr_dir/albion-binds.lua"
 changed=0
 
+# Write through symlinks (dotfiles setups): mv over a link would replace it
+# with a regular file. Temp files are created next to the real file.
+real_target="$(readlink -f -- "$target")"
+real_main="$(readlink -f -- "$main")"
+tmp=""
+trap '[[ -z $tmp ]] || rm -f -- "$tmp"' EXIT
+
 if ! printf '%s' "$content" | cmp -s - "$target" 2>/dev/null; then
-  tmp="$(mktemp "$target.XXXXXX")"
+  tmp="$(mktemp "$real_target.XXXXXX")"
   printf '%s' "$content" >"$tmp"
   # Refuse to install a file Lua cannot compile (when luac is available).
   if command -v luac >/dev/null 2>&1; then
@@ -24,17 +31,19 @@ if ! printf '%s' "$content" | cmp -s - "$target" 2>/dev/null; then
       exit 1
     fi
   fi
-  mv "$tmp" "$target"
+  mv "$tmp" "$real_target"
+  tmp=""
   changed=1
 fi
 
 # Cleanup of the pre-rename plugin (fcogarcia.albion-binds): drop its loader
 # line and comment (exact lines only) and its generated file.
 if [[ -f $main ]] && { grep -qxF "$legacy_marker" "$main" || grep -q "^$legacy_comment" "$main"; }; then
-  tmp="$(mktemp "$main.XXXXXX")"
+  tmp="$(mktemp "$real_main.XXXXXX")"
   grep -vxF "$legacy_marker" "$main" | grep -v "^$legacy_comment" >"$tmp" || true
-  chmod --reference="$main" "$tmp" 2>/dev/null || true
-  mv "$tmp" "$main"
+  chmod --reference="$real_main" "$tmp" 2>/dev/null || true
+  mv "$tmp" "$real_main"
+  tmp=""
   changed=1
 fi
 if [[ -f $legacy_target ]]; then

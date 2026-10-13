@@ -42,7 +42,7 @@ Fix the defects found in the 2026-10-12 read-only audit and polish the UI. The u
   - Zona negra refetches on a city change.
   - The death card persists and fetches only when the set changes.
   - Optional `ui.server` setting.
-- [ ] T4 `fix(panel)`: binds hardening.
+- [x] T4 `fix(panel)`: binds hardening.
   - `applyProc` uses the exit code and clears `errorText` on success.
   - `apply.sh` keeps symlinks and cleans up its temp file with a trap.
 - [ ] T5 `refactor(ui)`: shared components and visual polish.
@@ -73,5 +73,11 @@ Fix the defects found in the 2026-10-12 read-only audit and polish the UI. The u
 - BlackzoneView: city/server change clears prices and the stale text and refetches when the death card is open; stale answers dropped by set/city/server; reopening the card on the selected set does not call `rememberUi` and refetches only if no prices are loaded. Server selector under the city row.
 - qmllint (`-I ~/.cache/qsl`): FarmView 46 missing-property + 140 unqualified (base 46 + 138), BlackzoneView 50 + 179 (base 50 + 177), 0 errors.
 
+### T4 (writer)
+- RED: 3 failing apply.sh tests (symlinked legacy cleanup, symlinked target, failing mv leaves temp file); the plain symlinked-hyprland.lua append test already passed (`>>` follows links). GREEN: `npm test` 214/214 (was 210).
+- apply.sh resolves `readlink -f` for the target and hyprland.lua, creates temps next to the real file, and an EXIT trap removes a leftover temp. Panel `applyProc`: exit code checked, generic Spanish error when stderr is empty, `errorText` cleared on exit 0.
+- qmllint Panel: 11 missing-property + 1 signal-handler-parameters, identical to base. Tested only against temp dirs; the real ~/.config/hypr was never touched.
+- No `qs -p` smoke load was run for T1-T4 (QML-only edits verified by qmllint).
+
 ## Next step
-T1.
+T5.

@@ -1,7 +1,7 @@
 import { describe, test, beforeEach, afterEach } from "node:test"
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, rmSync, chmodSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, lstatSync, readFileSync, readdirSync, existsSync, rmSync, chmodSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -113,5 +113,49 @@ describe("apply.sh", () => {
     const main = readFileSync(join(hyprDir, "hyprland.lua"), "utf8")
     assert.ok(main.startsWith(original))
     assert.equal(existsSync(join(hyprDir, "albion-binds.lua")), false)
+  })
+
+  test("a symlinked hyprland.lua stays a symlink and the real file is edited", () => {
+    const dots = join(root, "dotfiles")
+    mkdirSync(dots)
+    writeFileSync(join(dots, "hyprland.lua"), "-- dotfiles config\n")
+    rmSync(join(hyprDir, "hyprland.lua"))
+    symlinkSync(join(dots, "hyprland.lua"), join(hyprDir, "hyprland.lua"))
+    const res = apply(VALID)
+    assert.equal(res.status, 0, res.stderr)
+    assert.equal(lstatSync(join(hyprDir, "hyprland.lua")).isSymbolicLink(), true)
+    assert.ok(readFileSync(join(dots, "hyprland.lua"), "utf8").includes(MARKER))
+    assert.deepEqual(readdirSync(dots), ["hyprland.lua"])
+  })
+
+  test("a symlinked legacy cleanup keeps the symlink too", () => {
+    const dots = join(root, "dotfiles")
+    mkdirSync(dots)
+    writeFileSync(join(dots, "hyprland.lua"), `-- mine\n${MARKER.replace("companion", "binds")}\n`)
+    rmSync(join(hyprDir, "hyprland.lua"))
+    symlinkSync(join(dots, "hyprland.lua"), join(hyprDir, "hyprland.lua"))
+    const res = apply(VALID)
+    assert.equal(res.status, 0, res.stderr)
+    assert.equal(lstatSync(join(hyprDir, "hyprland.lua")).isSymbolicLink(), true)
+    assert.ok(!readFileSync(join(dots, "hyprland.lua"), "utf8").includes("albion-binds"))
+  })
+
+  test("a symlinked target keeps its link", () => {
+    const dots = join(root, "dotfiles")
+    mkdirSync(dots)
+    writeFileSync(join(dots, "albion-companion.lua"), "-- old\n")
+    symlinkSync(join(dots, "albion-companion.lua"), join(hyprDir, "albion-companion.lua"))
+    const res = apply(VALID)
+    assert.equal(res.status, 0, res.stderr)
+    assert.equal(lstatSync(join(hyprDir, "albion-companion.lua")).isSymbolicLink(), true)
+    assert.equal(readFileSync(join(dots, "albion-companion.lua"), "utf8"), VALID)
+  })
+
+  test("a failing mv leaves no temp file behind", () => {
+    writeFileSync(join(root, "bin", "mv"), "#!/usr/bin/env bash\nexit 1\n")
+    chmodSync(join(root, "bin", "mv"), 0o755)
+    const res = apply(VALID)
+    assert.notEqual(res.status, 0)
+    assert.deepEqual(readdirSync(hyprDir).sort(), ["hyprland.lua"])
   })
 })

@@ -52,6 +52,8 @@ Panel {
     var script = decodeURIComponent(String(Qt.resolvedUrl("binds/apply.sh")).replace(/^file:\/\//, ""))
     applyProc.command = ["bash", script, pendingLua]
     pendingLua = ""
+    applyProc.stderrText = ""
+    applyProc.code = -1
     applyProc.running = true
   }
 
@@ -161,11 +163,23 @@ Panel {
 
   Process {
     id: applyProc
+    // Exit code of the last run (-1 while it runs) and what it wrote to
+    // stderr; either can be reported first, so both handlers set the error.
+    property int code: -1
+    property string stderrText: ""
     stderr: StdioCollector {
       waitForEnd: true
-      onStreamFinished: if (text.trim() !== "") root.errorText = "Hyprland: " + text.trim()
+      onStreamFinished: {
+        applyProc.stderrText = text.trim()
+        if (applyProc.code > 0 && applyProc.stderrText !== "") root.errorText = "Hyprland: " + applyProc.stderrText
+      }
     }
-    onExited: if (root.pendingLua !== "") root.runApply()
+    onExited: function(exitCode, exitStatus) {
+      code = exitCode
+      if (exitCode === 0) root.errorText = ""
+      else root.errorText = stderrText !== "" ? "Hyprland: " + stderrText : "No pude aplicar los atajos en Hyprland (código " + exitCode + ")."
+      if (root.pendingLua !== "") root.runApply()
+    }
   }
 
   implicitWidth: button.implicitWidth
