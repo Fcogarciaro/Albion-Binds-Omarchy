@@ -201,11 +201,14 @@ function harvestCycle(farm, input) {
   if (!isNonNegativeInt(i.cropsHarvested)) return fail("Los cultivos cosechados deben ser un número entero (0 o más).")
   if (!isNonNegativeInt(i.seedsReturned)) return fail("Las semillas devueltas deben ser un número entero (0 o más).")
   if (!isNonNegativeInt(i.cropPrice)) return fail("El precio del cultivo debe ser un número entero (0 o más).")
-  if (!isNonNegativeInt(i.now) || i.now < current.plantedAt) return fail("La fecha de cosecha no es válida.")
+  if (!isNonNegativeInt(i.now)) return fail("La fecha de cosecha no es válida.")
+  // A clock set behind the planting time (skew, sync) is clamped so the
+  // harvest is still recorded.
+  var harvestedAt = Math.max(i.now, current.plantedAt)
   var closed = {
     id: current.id, plotId: current.plotId, crop: current.crop, plantedAt: current.plantedAt,
     seedsPlanted: current.seedsPlanted, seedPrice: current.seedPrice,
-    harvestedAt: i.now, cropsHarvested: i.cropsHarvested, seedsReturned: i.seedsReturned, cropPrice: i.cropPrice
+    harvestedAt: harvestedAt, cropsHarvested: i.cropsHarvested, seedsReturned: i.seedsReturned, cropPrice: i.cropPrice
   }
   var cycles = f.cycles.slice()
   cycles[index] = closed
@@ -294,11 +297,17 @@ function totals(farm, taxRate) {
 
 // ---------- Input / output helpers ----------
 
-// Whole number typed by the user; spaces, commas and dots are grouping.
+// Whole number typed by the user. A space, comma or dot is accepted only as a
+// thousands separator (valid 3-digit groups, one kind of separator), so "9.5"
+// and "1,5" are rejected instead of becoming 95 and 15. Capped like parseSilver.
 function parseInteger(text) {
   if (text === null || text === undefined) return null
-  var t = String(text).replace(/[\s,.]/g, "")
-  return /^[0-9]+$/.test(t) ? Number(t) : null
+  var t = String(text).trim()
+  var n
+  if (/^[0-9]+$/.test(t)) n = Number(t)
+  else if (/^[0-9]{1,3}( [0-9]{3})+$/.test(t) || /^[0-9]{1,3}(,[0-9]{3})+$/.test(t) || /^[0-9]{1,3}(\.[0-9]{3})+$/.test(t)) n = Number(t.replace(/[ ,.]/g, ""))
+  else return null
+  return n <= 9007199254740991 ? n : null
 }
 
 // Silver amount typed by the user: whole number, grouped digits ("1.500.000",
@@ -341,8 +350,9 @@ function formatPercent(rate) {
 
 function formatSilver(value) {
   if (typeof value !== "number" || !isFinite(value)) return "-"
-  var sign = value < 0 ? "-" : ""
-  var digits = String(Math.abs(Math.round(value)))
+  var rounded = Math.round(value)
+  var sign = rounded < 0 ? "-" : ""
+  var digits = String(Math.abs(rounded))
   return sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 

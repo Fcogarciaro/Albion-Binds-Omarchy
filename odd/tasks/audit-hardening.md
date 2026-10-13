@@ -32,7 +32,7 @@ Fix the defects found in the 2026-10-12 read-only audit and polish the UI. The u
   - No save happens before `loaded`.
   - `error` is cleared on a successful save.
   - `ui.tab` is persisted debounced or only with other writes, not on every switch.
-- [ ] T2 `fix(numbers)`: number parsing and display.
+- [x] T2 `fix(numbers)`: number parsing and display.
   - `parseInteger` accepts only valid thousands groups and is capped at MAX_SAFE_INTEGER.
   - `formatSilver` no longer shows "-0".
   - Harvest is tolerated when the clock is behind the planting time (clock skew).
@@ -61,6 +61,10 @@ Fix the defects found in the 2026-10-12 read-only audit and polish the UI. The u
 - `Storage.saveDecision` (queue / block / write) and `Storage.errorAfterSave`. DataStore: `loadBlocked` (first-load parse error), `saveQueued` flushed after load, `saveFailed` flag so only a save error is cleared by a later successful save, `setTab` debounced 1.5 s (flushed on destruction).
 - `data.json.bak` not written: while blocked the unparsable file is never overwritten, and saves resume only after a successful reload, so there is nothing to back up.
 - qmllint DataStore (`/usr/lib/qt6/bin/qmllint -I ~/.cache/qsl`): 1 warning, identical to base.
+
+### T2 (writer)
+- RED: 4 failing (parseInteger groups, cap, formatSilver -0, harvest clock skew). GREEN: `npm test` 205/205 (was 202).
+- `parseInteger` accepts one kind of separator in valid 3-digit groups only, capped at MAX_SAFE_INTEGER. `formatSilver` rounds before the sign (no "-0"). `harvestCycle` clamps `harvestedAt` to `plantedAt` instead of failing. Blackzone.js has no parseInteger; only QML callers (via Farm), so nothing else changed.
 
 ## Next step
 T1.

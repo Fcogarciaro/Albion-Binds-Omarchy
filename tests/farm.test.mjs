@@ -84,12 +84,20 @@ test("harvestCycle: closes the cycle", () => {
 test("harvestCycle: validates cycle, state and amounts, allows zero harvest", () => {
   const open = withOpenCycle()
   const base = { cycleId: "c1", cropsHarvested: 1, seedsReturned: 0, cropPrice: 1, now: 2000 }
-  for (const bad of [{ cycleId: "zzz" }, { cropsHarvested: -1 }, { seedsReturned: 1.2 }, { cropPrice: -3 }, { now: 500 }]) {
+  for (const bad of [{ cycleId: "zzz" }, { cropsHarvested: -1 }, { seedsReturned: 1.2 }, { cropPrice: -3 }, { now: -1 }, { now: 1.5 }]) {
     assert.equal(Farm.harvestCycle(open, Object.assign({}, base, bad)).ok, false, JSON.stringify(bad))
   }
   assert.equal(Farm.harvestCycle(open, Object.assign({}, base, { cropsHarvested: 0 })).ok, true)
   const closed = ok(Farm.harvestCycle(open, base))
   assert.equal(Farm.harvestCycle(closed, base).ok, false)
+})
+
+test("harvestCycle: a clock behind plantedAt is clamped, not rejected", () => {
+  const open = withOpenCycle()
+  const planted = open.cycles[0].plantedAt
+  const c = ok(Farm.harvestCycle(open, { cycleId: "c1", cropsHarvested: 5, seedsReturned: 1, cropPrice: 10, now: planted - 500 })).cycles[0]
+  assert.equal(c.harvestedAt, planted)
+  assert.equal(c.cropsHarvested, 5)
 })
 
 test("harvestCycle: does not mutate the input", () => {
@@ -177,6 +185,17 @@ test("sanitizeFarm: invalid or missing tax rate falls back to the default", () =
   assert.equal(Farm.sanitizeFarm(null).settings.taxRate, 0.065)
 })
 
+test("parseInteger: separators only as valid thousands groups", () => {
+  for (const [text, n] of [["1,000", 1000], ["1.000", 1000], ["12,345,678", 12345678], ["1 000", 1000], ["999", 999], ["0", 0]]) assert.equal(Farm.parseInteger(text), n, text)
+  for (const bad of ["9.5", "1,5", "1,00", "1,0000", ",100", "1.000,5", "1,000.000", "12 34"]) assert.equal(Farm.parseInteger(bad), null, bad)
+})
+
+test("parseInteger: capped at MAX_SAFE_INTEGER", () => {
+  assert.equal(Farm.parseInteger("9007199254740991"), 9007199254740991)
+  assert.equal(Farm.parseInteger("9007199254740992"), null)
+  assert.equal(Farm.parseInteger("99999999999999999999"), null)
+})
+
 test("parseInteger: plain and grouped digits, rejects the rest", () => {
   assert.equal(Farm.parseInteger("1234"), 1234)
   assert.equal(Farm.parseInteger(" 1,234 "), 1234)
@@ -200,6 +219,8 @@ test("formatSilver: thousands separators and sign", () => {
   assert.equal(Farm.formatSilver(1234567), "1,234,567")
   assert.equal(Farm.formatSilver(-46850), "-46,850")
   assert.equal(Farm.formatSilver(null), "-")
+  assert.equal(Farm.formatSilver(-0), "0")
+  assert.equal(Farm.formatSilver(-0.4), "0")
 })
 
 test("openCycle: finds the open cycle of a plot, null otherwise", () => {
