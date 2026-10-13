@@ -222,7 +222,7 @@ Panel {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        spacing: Style.space(14)
+        spacing: Style.space(12)
 
         ButtonGroup {
           id: tabs

@@ -2,6 +2,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 import "Binds.js" as Binds
+import "../components"
 
 // "Atajos" tab: master switch, bind list, add form and backup section.
 // State and persistence stay in the bar widget (`owner`, Panel.qml).
@@ -14,7 +15,13 @@ Column {
 
   readonly property bool editing: customTriggerField.activeFocus || comboField.activeFocus || dropdown.popupOpen
 
-  spacing: Style.space(14)
+  spacing: look.gapSection
+
+  ViewStyle {
+    id: look
+    foreground: view.owner.bar.foreground
+    fontFamily: view.owner.bar.fontFamily
+  }
 
   function addBind() {
     var trigger = Binds.normalizeTrigger(owner.newTrigger === "custom" ? customTriggerField.text : owner.newTrigger)
@@ -107,7 +114,7 @@ Column {
         visible: owner.binds.length === 0
         text: "Sin atajos. Agrega uno abajo."
         color: owner.bar.foreground
-        opacity: 0.6
+        opacity: look.secondaryOpacity
         font.family: owner.bar.fontFamily
         font.pixelSize: Style.font.bodySmall
       }
@@ -146,7 +153,7 @@ Column {
               textFormat: Text.PlainText
               text: bindRow.modelData.trigger
               color: owner.bar.foreground
-              opacity: 0.6
+              opacity: look.secondaryOpacity
               font.family: owner.bar.fontFamily
               font.pixelSize: Style.font.caption
               elide: Text.ElideRight
@@ -157,7 +164,7 @@ Column {
           ToggleSwitch {
             id: bindSwitch
             anchors.right: removeButton.left
-            anchors.rightMargin: Style.space(6)
+            anchors.rightMargin: Style.space(8)
             anchors.verticalCenter: parent.verticalCenter
             checked: bindRow.modelData.enabled
             foreground: owner.bar.foreground
@@ -216,7 +223,7 @@ Column {
 
       Row {
         width: parent.width
-        spacing: Style.space(6)
+        spacing: look.gap
 
         TextField {
           id: comboField
@@ -270,14 +277,14 @@ Column {
         textFormat: Text.PlainText
         text: "~/albion-companion.json"
         color: owner.bar.foreground
-        opacity: 0.6
+        opacity: look.secondaryOpacity
         font.family: owner.bar.fontFamily
         font.pixelSize: Style.font.caption
         elide: Text.ElideRight
       }
 
       Row {
-        spacing: Style.space(6)
+        spacing: look.gap
 
         Button {
           text: "Exportar"
@@ -304,7 +311,7 @@ Column {
         textFormat: Text.PlainText
         text: owner.backupText
         color: owner.backupFailed ? Color.urgent : owner.bar.foreground
-        opacity: owner.backupFailed ? 1 : 0.7
+        opacity: owner.backupFailed ? 1 : look.labelOpacity
         font.family: owner.bar.fontFamily
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap

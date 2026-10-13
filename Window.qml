@@ -7,6 +7,7 @@ import qs.Ui
 import "shared"
 import "farm"
 import "blackzone"
+import "components"
 
 // Large floating window for data entry (Cultivos and Zona negra). Opened with
 // `omarchy-shell shell toggle fcogarcia.albion-companion '{}'`; the Atajos tab
@@ -62,6 +63,15 @@ Item {
     }
   }
 
+  // Look of the window's own header (the views build theirs from viewOwner.bar).
+  // Wide, so its type is scaled up like the views' in the large window.
+  ViewStyle {
+    id: look
+    foreground: viewOwner.bar.foreground
+    fontFamily: viewOwner.bar.fontFamily
+    wide: true
+  }
+
   PanelWindow {
     visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
@@ -73,7 +83,8 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      color: Qt.rgba(0, 0, 0, 0.55)
+      // The shell's scrim token for full-screen dimming behind a popup.
+      color: Color.menu.scrim
 
       MouseArea {
         anchors.fill: parent
@@ -94,6 +105,7 @@ Item {
         // About 1000x700, clamped so it never overflows small outputs.
         width: Math.min(Style.space(1000), keyCatcher.width - Style.space(32))
         height: Math.min(Style.space(700), keyCatcher.height - Style.space(32))
+        radius: Style.cornerRadius
         color: Color.popups.background
         border.color: Color.popups.border
         border.width: Style.normalBorderWidth
@@ -106,17 +118,16 @@ Item {
           anchors.top: parent.top
           anchors.left: parent.left
           anchors.right: parent.right
-          anchors.margins: Style.space(16)
+          anchors.margins: look.gapLane
           height: tabs.implicitHeight
 
-          Text {
+          ViewText {
             id: title
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            theme: look
+            size: "body"
             text: "Albion Companion"
-            color: viewOwner.bar.foreground
-            font.family: viewOwner.bar.fontFamily
-            font.pixelSize: Style.font.body
             font.bold: true
           }
 
@@ -129,20 +140,17 @@ Item {
             ]
             value: root.currentTab
             focusable: false
-            foreground: viewOwner.bar.foreground
-            fontFamily: viewOwner.bar.fontFamily
-            fontSize: Style.font.bodySmall
+            foreground: look.foreground
+            fontFamily: look.fontFamily
+            fontSize: look.fontBodySmall
             onChanged: function(v) { DataStore.setTab(v) }
           }
 
-          Button {
+          ViewButton {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
+            theme: look
             text: "Cerrar"
-            foreground: viewOwner.bar.foreground
-            fontFamily: viewOwner.bar.fontFamily
-            fontSize: Style.font.bodySmall
-            bordered: true
             onClicked: root.dismiss()
           }
         }
@@ -150,11 +158,11 @@ Item {
         Flickable {
           id: scroller
           anchors.top: header.bottom
-          anchors.topMargin: Style.space(14)
+          anchors.topMargin: look.gapSection
           anchors.left: parent.left
           anchors.right: parent.right
           anchors.bottom: parent.bottom
-          anchors.margins: Style.space(16)
+          anchors.margins: look.gapLane
           clip: true
           contentWidth: width
           contentHeight: views.height
