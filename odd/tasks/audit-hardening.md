@@ -36,7 +36,7 @@ Fix the defects found in the 2026-10-12 read-only audit and polish the UI. The u
   - `parseInteger` accepts only valid thousands groups and is capped at MAX_SAFE_INTEGER.
   - `formatSilver` no longer shows "-0".
   - Harvest is tolerated when the clock is behind the planting time (clock skew).
-- [ ] T3 `fix(prices)`: request-scoped price answers.
+- [x] T3 `fix(prices)`: request-scoped price answers.
   - Each answer is bound to the city, plot and crop of its request.
   - The planner refetches after a city change or a failed fetch.
   - Zona negra refetches on a city change.
@@ -65,6 +65,13 @@ Fix the defects found in the 2026-10-12 read-only audit and polish the UI. The u
 ### T2 (writer)
 - RED: 4 failing (parseInteger groups, cap, formatSilver -0, harvest clock skew). GREEN: `npm test` 205/205 (was 202).
 - `parseInteger` accepts one kind of separator in valid 3-digit groups only, capped at MAX_SAFE_INTEGER. `formatSilver` rounds before the sign (no "-0"). `harvestCycle` clamps `harvestedAt` to `plantedAt` instead of failing. Blackzone.js has no parseInteger; only QML callers (via Farm), so nothing else changed.
+
+### T3 (writer)
+- RED: 16 failing (new `ui.server`, `curlArgs`, `checkResponse`, `sameRequest` tests plus ui shape expectations). GREEN: `npm test` 210/210 (was 205).
+- Prices.js: `curlArgs` (adds `--compressed`, status via `-w`, no `-f`), `checkResponse` (429 -> "El mercado limitó las consultas, intenta en un minuto.", other failures -> generic message), `sameRequest`, `SERVER_OPTIONS`. Storage `ui.server` (default west, old files load unchanged).
+- FarmView: form price request captured (city, server, plot, mode, item) and applied only if it still matches; a stale answer is dropped and re-requested if the user had asked. Planner: request captured, `onPlannerKeyChanged` resets status (next open fetches even when closed), refetch after a failed fetch. Server selector in the planner.
+- BlackzoneView: city/server change clears prices and the stale text and refetches when the death card is open; stale answers dropped by set/city/server; reopening the card on the selected set does not call `rememberUi` and refetches only if no prices are loaded. Server selector under the city row.
+- qmllint (`-I ~/.cache/qsl`): FarmView 46 missing-property + 140 unqualified (base 46 + 138), BlackzoneView 50 + 179 (base 50 + 177), 0 errors.
 
 ## Next step
 T1.

@@ -4,7 +4,7 @@ import { loadStorage, plain } from "./helpers/load-model.mjs"
 
 const Storage = loadStorage()
 
-const EMPTY = { version: 1, farm: { plots: [], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [] }, ui: { city: "Lymhurst", deathSetId: "", expenseNote: "", tab: "binds" } }
+const EMPTY = { version: 1, farm: { plots: [], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [] }, ui: { city: "Lymhurst", deathSetId: "", expenseNote: "", tab: "binds", server: "west" } }
 
 test("defaultData: versioned empty document", () => {
   assert.equal(Storage.DATA_VERSION, 1)
@@ -18,7 +18,7 @@ test("defaultData: returns a fresh object each time", () => {
 })
 
 test("parseData: round trip of a valid document", () => {
-  const doc = { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.04, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [{ t: 1 }] }, ui: { city: "Bridgewatch", deathSetId: "s1", expenseNote: "Portal SAFE", tab: "farm" } }
+  const doc = { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.04, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [{ t: 1 }] }, ui: { city: "Bridgewatch", deathSetId: "s1", expenseNote: "Portal SAFE", tab: "farm", server: "west" } }
   const r = plain(Storage.parseData(JSON.stringify(doc)))
   assert.equal(r.ok, true)
   assert.deepEqual(r.data, doc)
@@ -27,7 +27,7 @@ test("parseData: round trip of a valid document", () => {
 test("parseData: missing sections are filled with defaults", () => {
   const r = plain(Storage.parseData(JSON.stringify({ version: 1, farm: { plots: [{ id: "a" }] } })))
   assert.equal(r.ok, true)
-  assert.deepEqual(r.data, { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [] }, ui: { city: "Lymhurst", deathSetId: "", expenseNote: "", tab: "binds" } })
+  assert.deepEqual(r.data, { version: 1, farm: { plots: [{ id: "a" }], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [] }, ui: { city: "Lymhurst", deathSetId: "", expenseNote: "", tab: "binds", server: "west" } })
 })
 
 test("parseData: an empty object gets the full default document", () => {
@@ -53,7 +53,7 @@ test("parseData: a newer version is an error", () => {
 test("parseData: wrongly typed sections are replaced by defaults", () => {
   const r = plain(Storage.parseData(JSON.stringify({ version: 1, farm: "x", blackzone: { sets: 3, events: [1] } })))
   assert.equal(r.ok, true)
-  assert.deepEqual(r.data, { version: 1, farm: { plots: [], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [1] }, ui: { city: "Lymhurst", deathSetId: "", expenseNote: "", tab: "binds" } })
+  assert.deepEqual(r.data, { version: 1, farm: { plots: [], cycles: [], settings: { taxRate: 0.065, premium: true, focus: true, seedsPerPlot: 9 } }, blackzone: { sets: [], events: [1] }, ui: { city: "Lymhurst", deathSetId: "", expenseNote: "", tab: "binds", server: "west" } })
 })
 
 test("serializeData: pretty-printed with trailing newline, parseable", () => {
@@ -136,7 +136,7 @@ test("reloadOutcome: honors the injected blackzone sanitizer", () => {
 })
 
 test("parseData: ui remembers city, death set and expense note", () => {
-  const ui = { city: "Bridgewatch", deathSetId: "s1", expenseNote: "Portal SAFE", tab: "farm" }
+  const ui = { city: "Bridgewatch", deathSetId: "s1", expenseNote: "Portal SAFE", tab: "farm", server: "west" }
   const r = plain(Storage.parseData(JSON.stringify({ version: 1, ui })))
   assert.deepEqual(r.data.ui, ui)
   assert.equal(r.data.version, 1)
@@ -144,7 +144,7 @@ test("parseData: ui remembers city, death set and expense note", () => {
 
 test("parseData: old files without ui load with the default ui", () => {
   const r = plain(Storage.parseData(JSON.stringify({ version: 1, farm: { plots: [], cycles: [] }, blackzone: { sets: [], events: [] } })))
-  assert.deepEqual(r.data.ui, { city: "Lymhurst", deathSetId: "", expenseNote: "", tab: "binds" })
+  assert.deepEqual(r.data.ui, { city: "Lymhurst", deathSetId: "", expenseNote: "", tab: "binds", server: "west" })
 })
 
 test("parseData: invalid ui values fall back field by field, and unknown keys are dropped", () => {
@@ -155,7 +155,7 @@ test("parseData: invalid ui values fall back field by field, and unknown keys ar
     assert.ok(r.data.ui.expenseNote.length <= 120, JSON.stringify(ui))
   }
   const r = plain(Storage.parseData(JSON.stringify({ ui: { city: "Martlock", extra: 1, expenseNote: "  Portal  " } })))
-  assert.deepEqual(r.data.ui, { city: "Martlock", deathSetId: "", expenseNote: "Portal", tab: "binds" })
+  assert.deepEqual(r.data.ui, { city: "Martlock", deathSetId: "", expenseNote: "Portal", tab: "binds", server: "west" })
 })
 
 test("reloadOutcome: a changed ui from another PC is applied", () => {
@@ -209,4 +209,16 @@ test("errorAfterSave: only a save error is cleared by a successful save", () => 
   assert.equal(Storage.errorAfterSave("No pude guardar los datos.", true), "")
   assert.equal(Storage.errorAfterSave("El archivo de datos no es JSON válido.", false), "El archivo de datos no es JSON válido.")
   assert.equal(Storage.errorAfterSave("", false), "")
+})
+
+test("uiOr: server is west | east | europe, anything else falls back to west", () => {
+  for (const server of ["west", "east", "europe"]) assert.equal(Storage.uiOr({ server }).server, server)
+  for (const bad of ["EAST", "asia", "", 3, null, undefined, {}]) assert.equal(Storage.uiOr({ server: bad }).server, "west", String(bad))
+  assert.equal(Storage.uiOr(null).server, "west")
+})
+
+test("parseData: an old file without ui.server loads with the default", () => {
+  const r = plain(Storage.parseData(JSON.stringify({ version: 1, ui: { city: "Martlock", tab: "farm" } })))
+  assert.equal(r.data.ui.city, "Martlock")
+  assert.equal(r.data.ui.server, "west")
 })

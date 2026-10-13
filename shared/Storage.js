@@ -15,6 +15,8 @@ var MAX_UI_ID = 64
 var MAX_UI_NOTE = 120
 // Last open tab of the bar panel / large window (the window has no "binds").
 var UI_TABS = ["binds", "farm", "blackzone"]
+// Mirror Prices.js SERVERS; "west" is the default price server.
+var UI_SERVERS = ["west", "east", "europe"]
 
 function defaultData() {
   return {
@@ -41,7 +43,7 @@ function settingsOr(settings) {
   }
 }
 
-// Remembered choices (last city, death set, expense note and open tab). They live
+// Remembered choices (last city, price server, death set, expense note and open tab). They live
 // in the data file so they follow the user across PCs; every field is
 // validated on its own and unknown keys are dropped.
 function uiOr(ui) {
@@ -53,7 +55,8 @@ function uiOr(ui) {
     city: city !== "" && city.length <= 40 ? city : DEFAULT_CITY,
     deathSetId: setId.length <= MAX_UI_ID ? setId : "",
     expenseNote: note.slice(0, MAX_UI_NOTE),
-    tab: UI_TABS.indexOf(u.tab) >= 0 ? u.tab : "binds"
+    tab: UI_TABS.indexOf(u.tab) >= 0 ? u.tab : "binds",
+    server: UI_SERVERS.indexOf(u.server) >= 0 ? u.server : "west"
   }
 }
 

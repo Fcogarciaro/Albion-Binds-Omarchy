@@ -48,9 +48,13 @@ Column {
   property string plantCrop: "turnip"
   // City shared by the prefill, the planner and the black zone deaths: remembered in the data file.
   readonly property string city: store.document.ui.city
+  readonly property string server: store.document.ui.server
   property string errorText: ""
   property string priceText: ""
-  property string priceTarget: ""
+  // The form price request in flight and the one the user last asked for. An
+  // answer is applied only if it still matches the open form.
+  property var priceInFlight: null
+  property bool priceWanted: false
   // Delete control awaiting its second tap ("plot:<id>", "open:<id>", "hist:<id>").
   property string confirmKey: ""
   // Rotation planner: collapsible, prices fetched on demand for plannerCity.
@@ -58,12 +62,14 @@ Column {
   readonly property string plannerCity: city
   property var plannerPrices: ({})
   property string plannerStatus: ""
+  property bool plannerFailed: false
+  readonly property string plannerKey: plannerCity + "|" + server
   readonly property var plannerRows: Planner.rankCrops(farm, plannerPrices, Farm.CROPS)
   readonly property var activeCycle: activePlotId !== "" ? Farm.openCycle(farm, activePlotId) : null
   readonly property bool editing: plotNameField.activeFocus || seedsField.activeFocus || seedPriceField.activeFocus
     || harvestedField.activeFocus || returnedField.activeFocus || cropPriceField.activeFocus
     || taxField.activeFocus || seedsPlotField.activeFocus || cropDropdown.popupOpen || cityDropdown.popupOpen
-    || plannerCityDropdown.popupOpen
+    || plannerCityDropdown.popupOpen || plannerServerDropdown.popupOpen
 
   readonly property var cropOptions: Farm.CROPS.map(function(c) {
     return { value: c.key, label: "T" + c.tier + " " + c.name }
@@ -123,6 +129,7 @@ Column {
   }
 
   function setCity(value) { rememberUi({ city: value }) }
+  function setServer(value) { rememberUi({ server: value }) }
 
   // Focus goes to the form's first field once its section is visible.
   function focusForm() {
@@ -237,34 +244,66 @@ Column {
     }
   }
 
+  // What the open form is asking a price for (null when there is no form).
+  function priceRequest() {
+    if (activePlotId === "" || (activeMode !== "plant" && activeMode !== "harvest")) return null
+    var crop = Farm.cropByKey(activeMode === "plant" ? plantCrop : (activeCycle ? activeCycle.crop : ""))
+    if (!crop) return null
+    return {
+      city: city, server: server, plotId: activePlotId, mode: activeMode,
+      itemId: activeMode === "plant" ? crop.seedId : crop.cropId
+    }
+  }
+
   // Market prefill: failures only set a message, logging is never blocked.
   function fetchPrice() {
-    if (priceProc.running) return
-    var crop = Farm.cropByKey(activeMode === "plant" ? plantCrop : (activeCycle ? activeCycle.crop : ""))
-    if (!crop) return
-    priceTarget = activeMode
-    priceProc.wantedId = activeMode === "plant" ? crop.seedId : crop.cropId
+    if (!priceRequest()) return
+    priceWanted = true
     priceText = "Consultando el mercado…"
-    priceProc.command = ["curl", "-fsS", "--max-time", "8", Prices.buildUrl([priceProc.wantedId], city)]
+    if (!priceProc.running) startPriceRequest()
+  }
+
+  function startPriceRequest() {
+    var req = priceRequest()
+    if (!req) { priceWanted = false; priceText = ""; return }
+    priceInFlight = req
+    priceProc.command = Prices.curlArgs(Prices.buildUrl([req.itemId], req.city, req.server), 8)
     priceProc.running = true
   }
 
   function applyPrice(text) {
-    var result = Prices.parsePrices(text, city, [priceProc.wantedId])
-    if (!result.ok) { priceText = "No pude consultar el mercado. Escribe el precio a mano."; return }
-    var price = result.prices[priceProc.wantedId]
-    if (price === null || price === undefined) {
-      priceText = "Sin datos de mercado en " + city + ". Escribe el precio a mano."
+    var req = priceInFlight
+    priceInFlight = null
+    var current = priceRequest()
+    if (!Prices.sameRequest(req, current)) {
+      // The city, plot, crop or form changed while the request ran: drop the
+      // answer, and ask again if the user had asked for the current form.
+      if (current && priceWanted) startPriceRequest()
+      else priceText = ""
       return
     }
-    if (priceTarget === "plant") seedPriceField.text = String(price)
+    priceWanted = false
+    var checked = Prices.checkResponse(text, "No pude consultar el mercado. Escribe el precio a mano.")
+    if (!checked.ok) { priceText = checked.error; return }
+    var result = Prices.parsePrices(checked.body, req.city, [req.itemId])
+    if (!result.ok) { priceText = "No pude consultar el mercado. Escribe el precio a mano."; return }
+    var price = result.prices[req.itemId]
+    if (price === null || price === undefined) {
+      priceText = "Sin datos de mercado en " + req.city + ". Escribe el precio a mano."
+      return
+    }
+    if (req.mode === "plant") seedPriceField.text = String(price)
     else cropPriceField.text = String(price)
-    priceText = "Precio en " + city + ": " + Farm.formatSilver(price) + " (puede estar desactualizado)."
+    priceText = "Precio en " + req.city + ": " + Farm.formatSilver(price) + " (puede estar desactualizado)."
   }
+
+  // A new city or server makes the price line on the open form stale.
+  onCityChanged: priceText = ""
+  onServerChanged: priceText = ""
 
   function togglePlanner() {
     plannerOpen = !plannerOpen
-    if (plannerOpen && plannerStatus === "") fetchPlannerPrices()
+    if (plannerOpen && (plannerStatus === "" || plannerFailed)) fetchPlannerPrices()
   }
 
   function plannerIds() {
@@ -273,29 +312,49 @@ Column {
     return ids
   }
 
+  function plannerRequest() { return { city: plannerCity, server: server } }
+
   // One request for every crop and seed; failures only set a message.
   function fetchPlannerPrices() {
     if (plannerProc.running) return
     plannerStatus = "Consultando el mercado…"
-    plannerProc.city = plannerCity
-    plannerProc.command = ["curl", "-fsS", "--max-time", "10", Prices.buildUrl(plannerIds(), plannerCity)]
+    plannerFailed = false
+    plannerProc.req = plannerRequest()
+    plannerProc.command = Prices.curlArgs(Prices.buildUrl(plannerIds(), plannerProc.req.city, plannerProc.req.server), 10)
     plannerProc.running = true
   }
 
   function applyPlannerPrices(text) {
-    var result = Prices.parsePrices(text, plannerProc.city, plannerIds())
-    if (!result.ok) { plannerStatus = "No pude consultar el mercado. Intenta de nuevo."; return }
+    var req = plannerProc.req
+    if (!Prices.sameRequest(req, plannerRequest())) {
+      // The city or server changed while the request ran: never show the old
+      // answer. The change handler already reset the status; refetch if open.
+      plannerStatus = ""
+      if (plannerOpen) fetchPlannerPrices()
+      return
+    }
+    var checked = Prices.checkResponse(text, "No pude consultar el mercado. Intenta de nuevo.")
+    var result = checked.ok ? Prices.parsePrices(checked.body, req.city, plannerIds()) : null
+    if (!result || !result.ok) {
+      plannerStatus = checked.ok ? "No pude consultar el mercado. Intenta de nuevo." : checked.error
+      plannerFailed = true
+      return
+    }
     plannerPrices = result.prices
-    plannerStatus = "Precios de " + plannerProc.city + " (pueden estar desactualizados)."
+    plannerStatus = "Precios de " + req.city + " (pueden estar desactualizados)."
   }
 
   function setPlannerCity(value) {
     setCity(value)
   }
 
-  // A new city (picked here, in the form or synced from another PC) invalidates the planner prices.
-  onPlannerCityChanged: {
+  // A new city or server (picked here, in the form or synced from another PC)
+  // invalidates the planner prices. Resetting the status makes the next open
+  // fetch even while the planner is closed.
+  onPlannerKeyChanged: {
     plannerPrices = ({})
+    plannerStatus = ""
+    plannerFailed = false
     if (plannerOpen) fetchPlannerPrices()
   }
 
@@ -343,7 +402,6 @@ Column {
 
   Process {
     id: priceProc
-    property string wantedId: ""
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: view.applyPrice(text)
@@ -352,7 +410,7 @@ Column {
 
   Process {
     id: plannerProc
-    property string city: ""
+    property var req: null
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: view.applyPlannerPrices(text)
@@ -979,6 +1037,17 @@ Column {
           bordered: true
           onClicked: view.fetchPlannerPrices()
         }
+      }
+
+      Dropdown {
+        id: plannerServerDropdown
+        width: parent.width
+        label: "Servidor"
+        value: view.server
+        options: Prices.SERVER_OPTIONS
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        onChanged: function(v) { view.setServer(v) }
       }
 
       Item {

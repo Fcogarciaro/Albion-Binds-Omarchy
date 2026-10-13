@@ -60,6 +60,7 @@ Column {
   property string deathSetId: ""
   // Shared with the Cultivos tab; remembered in the data file (ui section).
   readonly property string city: store.document.ui.city
+  readonly property string server: store.document.ui.server
   readonly property var lastExpense: Bz.lastExpense(blackzone)
   property var deathPrices: ({})
   property string priceText: ""
@@ -129,7 +130,7 @@ Column {
   readonly property bool editing: newSetField.activeFocus || editorBusy
     || tomeBusy || deathValueField.activeFocus || lootValueField.activeFocus || lootNoteField.activeFocus
     || expenseValueField.activeFocus || expenseNoteField.activeFocus
-    || cityDropdown.popupOpen
+    || cityDropdown.popupOpen || serverDropdown.popupOpen
 
   readonly property var enchantOptions: [0, 1, 2, 3, 4].map(function(e) { return { value: String(e), label: "." + e } })
   readonly property var qualityOptions: [
@@ -202,6 +203,18 @@ Column {
   }
 
   function setCity(value) { rememberUi({ city: value }) }
+  function setServer(value) { rememberUi({ server: value }) }
+
+  // Prices (and the total they filled in) belong to one city and server: a
+  // change drops them and, with the death card open, asks again.
+  function resetDeathPrices() {
+    deathPrices = ({})
+    priceText = ""
+    if (!deathValueTouched) deathValueField.text = ""
+    if (composer === "death") fetchDeathPrices()
+  }
+  onCityChanged: resetDeathPrices()
+  onServerChanged: resetDeathPrices()
 
   // Focus goes to a section's first field once it is visible.
   function focusSoon(openCheck, focusIt) {
@@ -335,9 +348,12 @@ Column {
     if (set) pickDeathSet(set.id)
   }
 
+  // Opening the card on the set already selected keeps its prices and writes
+  // nothing; prices are fetched only for a new set or when none are loaded.
   function pickDeathSet(id) {
-    setDeathSet(id)
-    fetchDeathPrices()
+    var changed = id !== deathSetId
+    if (changed) setDeathSet(id)
+    if (changed || Object.keys(deathPrices).length === 0) fetchDeathPrices()
   }
 
   function setDeathSet(id) {
@@ -347,7 +363,7 @@ Column {
     deathValueField.text = ""
     deathValueTouched = false
     priceQueued = false
-    rememberUi({ deathSetId: id })
+    if (store.document.ui.deathSetId !== id) rememberUi({ deathSetId: id })
   }
 
   // "Morí con este set": opens the death card on that set (prices are fetched on selection).
@@ -390,21 +406,25 @@ Column {
       if (qualities.indexOf(items[i].quality) < 0) qualities.push(items[i].quality)
     }
     priceProc.city = city
+    priceProc.server = server
     priceProc.setId = set.id
     priceProc.keys = set.pieces.map(function(p) { return Bz.priceKey(p) })
     priceText = "Consultando el mercado…"
-    priceProc.command = ["curl", "-fsS", "--max-time", "10", Prices.buildUrl(ids, city, "west", qualities)]
+    priceProc.command = Prices.curlArgs(Prices.buildUrl(ids, city, server, qualities), 10)
     priceProc.running = true
   }
 
   function applyDeathPrices(text) {
-    // The set changed while the request ran: drop the stale answer (a queued request runs on exit).
-    if (priceProc.setId !== deathSetId) {
-      priceText = ""
+    // The set, city or server changed while the request ran: drop the stale
+    // answer (a queued request runs on exit).
+    if (priceProc.setId !== deathSetId || priceProc.city !== city || priceProc.server !== server) {
+      if (!priceQueued) priceText = ""
       return
     }
     priceQueued = false
-    var result = Prices.parseQualityPrices(text, priceProc.city, priceProc.keys)
+    var checked = Prices.checkResponse(text, "No pude consultar el mercado. Escribe el valor a mano.")
+    if (!checked.ok) { priceText = checked.error; return }
+    var result = Prices.parseQualityPrices(checked.body, priceProc.city, priceProc.keys)
     if (!result.ok) { priceText = "No pude consultar el mercado. Escribe el valor a mano."; return }
     deathPrices = result.prices
     if (!deathValueTouched) deathValueField.text = String(pricedValue())
@@ -485,6 +505,7 @@ Column {
   Process {
     id: priceProc
     property string city: ""
+    property string server: ""
     property string setId: ""
     property var keys: []
     // A request asked for while this one ran starts once it has exited.
@@ -861,6 +882,18 @@ Column {
           bordered: true
           onClicked: view.fetchDeathPrices()
         }
+      }
+
+      Dropdown {
+        id: serverDropdown
+        visible: view.blackzone.sets.length > 0
+        width: parent.width
+        label: "Servidor"
+        value: view.server
+        options: Prices.SERVER_OPTIONS
+        foreground: owner.bar.foreground
+        fontFamily: owner.bar.fontFamily
+        onChanged: function(v) { view.setServer(v) }
       }
 
       Text {

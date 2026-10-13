@@ -89,3 +89,35 @@ test("parseQualityPrices: keys are itemId:quality, missing wanted keys are null"
   assert.deepEqual(r.prices, { "T4_2H_BOW:1": 900, "T4_2H_BOW:3": 1200, "T4_2H_BOW:2": null, "T5_POTION_HEAL:1": null })
   assert.equal(Prices.parseQualityPrices("{nope", "Lymhurst").ok, false)
 })
+
+test("curlArgs: compressed, quiet-but-showing-errors, status code appended", () => {
+  const args = Prices.curlArgs("https://x/y", 8)
+  assert.equal(args[0], "curl")
+  assert.ok(args.includes("--compressed"))
+  assert.equal(args[args.indexOf("--max-time") + 1], "8")
+  assert.equal(args[args.indexOf("-w") + 1], "\n%{http_code}")
+  assert.equal(args[args.length - 1], "https://x/y")
+  assert.ok(!args.includes("-f"))
+})
+
+test("checkResponse: splits body and status, flags HTTP failures", () => {
+  assert.deepEqual(plain(Prices.checkResponse('[{"a":1}]\n200', "generic")), { ok: true, body: '[{"a":1}]' })
+  const throttled = plain(Prices.checkResponse("Throttled, be nice\n429", "generic"))
+  assert.equal(throttled.ok, false)
+  assert.equal(throttled.error, "El mercado limitó las consultas, intenta en un minuto.")
+  assert.deepEqual(plain(Prices.checkResponse("oops\n500", "generic")), { ok: false, error: "generic" })
+  assert.deepEqual(plain(Prices.checkResponse("\n000", "generic")), { ok: false, error: "generic" })
+  assert.deepEqual(plain(Prices.checkResponse("", "generic")), { ok: false, error: "generic" })
+  assert.deepEqual(plain(Prices.checkResponse("no status line", "generic")), { ok: false, error: "generic" })
+})
+
+test("sameRequest: equal only when every field matches", () => {
+  const a = { city: "Lymhurst", server: "west", plotId: "p1", mode: "plant", itemId: "T1" }
+  assert.equal(Prices.sameRequest(a, Object.assign({}, a)), true)
+  for (const patch of [{ city: "Martlock" }, { server: "east" }, { plotId: "p2" }, { mode: "harvest" }, { itemId: "T2" }]) {
+    assert.equal(Prices.sameRequest(a, Object.assign({}, a, patch)), false, JSON.stringify(patch))
+  }
+  assert.equal(Prices.sameRequest(a, null), false)
+  assert.equal(Prices.sameRequest(null, null), false)
+  assert.equal(Prices.sameRequest(a, { city: "Lymhurst" }), false)
+})

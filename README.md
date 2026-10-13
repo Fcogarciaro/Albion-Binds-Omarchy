@@ -191,7 +191,7 @@ cultivos × precio × (1 − impuesto)  +  (semillas devueltas − semillas plan
 ### Precio de mercado (opcional)
 
 En la tarjeta de captura, el botón **Precio de mercado** rellena el precio con el más bajo en venta de la ciudad que elijas, usando los datos del
-[Albion Online Data Project](https://www.albion-online-data.com/) (servidor América).
+[Albion Online Data Project](https://www.albion-online-data.com/) (servidor América por defecto; el selector **Servidor** del planificador y de la tarjeta de muerte permite elegir Asia o Europa).
 
 - Esos datos los suben **otros jugadores**, así que pueden estar **desactualizados o faltar** (por ejemplo, las semillas de frijol casi nunca tienen precio).
 - Si no hay datos o no hay internet, el campo se queda vacío y puedes escribir el precio a mano. Nada se bloquea.
@@ -209,7 +209,7 @@ semillas × cultivos por semilla × precio × (1 − impuesto)  +  (semillas dev
 - Si falta el precio del cultivo, la fila dice **sin precio** y va al final. Si solo falta el de la semilla, la ganancia cuenta solo la venta de cultivos y se marca como **parcial**, y va después de las filas completas.
 - Ajustes (se guardan en `data.json`): **Premium** (duplica los cultivos por semilla), **Riego con foco** (más semillas devueltas) y **Semillas por parcela** (9 por defecto; cámbialo si en tu juego es otro número).
 - Los valores estimados salen de los datos del juego y son **aproximados**; el efecto de Premium en los cultivos viene de la wiki y no está en los datos oficiales. Tu historial los reemplaza en cuanto lo tengas.
-- Los precios, como arriba, los suben otros jugadores y pueden estar desactualizados. Si no hay internet, solo verás un aviso.
+- Los precios, como arriba, los suben otros jugadores y pueden estar desactualizados. Si no hay internet, solo verás un aviso; si el mercado limita las consultas, verás "intenta en un minuto" (no se reintenta solo).
 
 ### Dónde se guardan los datos
 
@@ -267,7 +267,7 @@ Si repites el mismo gasto, usa **↻ Repetir: Portal SAFE −12k** (debajo de lo
 
 ### Cosas que recuerda el plugin
 
-Para escribir menos, el plugin recuerda tu **ciudad** (la misma para Cultivos, el planificador y las muertes), el **último set** de muerte y la **última pestaña**. Se guardan en `data.json` (sección `ui`), así que viajan contigo si sincronizas entre PCs.
+Para escribir menos, el plugin recuerda tu **ciudad** y tu **servidor** de precios (los mismos para Cultivos, el planificador y las muertes), el **último set** de muerte y la **última pestaña**. Se guardan en `data.json` (sección `ui`), así que viajan contigo si sincronizas entre PCs.
 
 Además recuerda la **última pestaña** abierta. En las tarjetas de captura, **Enter guarda** (en la de plantar y cosechar de Cultivos, Enter pasa al siguiente campo y guarda en el último). Al abrir una tarjeta, el cursor ya está en su primer campo.
 
