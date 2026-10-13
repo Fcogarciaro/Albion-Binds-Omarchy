@@ -7,30 +7,25 @@ Column {
 
   property string label: ""
   property string value: ""
-  property color foreground: Color.foreground
-  property color valueColor: foreground
-  property string fontFamily: Style.font.family
+  required property ViewStyle theme
+  property color valueColor: theme.foreground
 
   spacing: Style.space(2)
 
-  Text {
+  ViewText {
     width: parent.width
-    textFormat: Text.PlainText
+    theme: stat.theme
+    size: "caption"
+    tone: "label"
     text: stat.label
-    color: stat.foreground
-    opacity: 0.7
-    font.family: stat.fontFamily
-    font.pixelSize: Style.font.caption
     elide: Text.ElideRight
   }
 
-  Text {
+  ViewText {
     width: parent.width
-    textFormat: Text.PlainText
+    theme: stat.theme
     text: stat.value
     color: stat.valueColor
-    font.family: stat.fontFamily
-    font.pixelSize: Style.font.bodySmall
     font.bold: true
     elide: Text.ElideRight
   }

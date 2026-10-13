@@ -9,8 +9,7 @@ BorderSurface {
   id: card
 
   property string title: ""
-  property color foreground: Color.foreground
-  property string fontFamily: Style.font.family
+  required property ViewStyle theme
   // Item.children would swallow the header; fields go to the body column.
   default property alias content: body.data
 
@@ -18,8 +17,8 @@ BorderSurface {
 
   radius: Style.cornerRadius
   color: Style.normalFill
-  borderSpec: Border.controlSpec("normal", card.foreground, Color.accent)
-  padding: Style.space(10)
+  borderSpec: Border.controlSpec("normal", card.theme.foreground, Color.accent)
+  padding: card.theme.gapSection
   implicitHeight: inner.implicitHeight + contentTopInset + contentBottomInset
 
   Column {
@@ -27,36 +26,33 @@ BorderSurface {
     x: card.contentLeftInset
     y: card.contentTopInset
     width: card.width - card.contentLeftInset - card.contentRightInset
-    spacing: Style.space(8)
+    spacing: card.theme.gap
 
     Item {
       width: parent.width
       implicitHeight: Math.max(titleText.implicitHeight, closeButton.implicitHeight)
 
-      Text {
+      ViewText {
         id: titleText
         anchors.left: parent.left
         anchors.right: closeButton.left
-        anchors.rightMargin: Style.space(8)
+        anchors.rightMargin: card.theme.gap
         anchors.verticalCenter: parent.verticalCenter
-        textFormat: Text.PlainText
+        theme: card.theme
+        size: "body"
         text: card.title
-        color: card.foreground
-        font.family: card.fontFamily
-        font.pixelSize: Style.font.body
         font.bold: true
         elide: Text.ElideRight
       }
 
-      Button {
+      ViewButton {
         id: closeButton
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         text: "✕"
         tooltipText: "Cerrar"
-        foreground: card.foreground
-        fontFamily: card.fontFamily
-        fontSize: Style.font.bodySmall
+        theme: card.theme
+        role: "quiet"
         onClicked: card.closeRequested()
       }
     }
@@ -64,7 +60,7 @@ BorderSurface {
     Column {
       id: body
       width: parent.width
-      spacing: Style.space(8)
+      spacing: card.theme.gap
     }
   }
 }
