@@ -38,12 +38,26 @@ Item {
   // False while the watcher could not attach (the file did not exist when it
   // started): an inotify watch needs the file, so nothing would ever notify.
   property bool watchArmed: false
+  // The first load found a file it could not parse: saving would overwrite
+  // the user's real data with defaults, so saves stay off until a reload
+  // parses (applyReload "apply").
+  property bool loadBlocked: false
+  // A save was requested before the first load finished; flushed once loaded.
+  property bool saveQueued: false
+  // The current `error` comes from a failed save (and so a save may clear it).
+  property bool saveFailed: false
 
   // FileView is not documented to create parent directories, so mkdir -p
   // runs first (same approach as plugins/notifications/Service.qml).
   // Saves the current document. The directory is created once per session;
   // a save requested while mkdir runs is written when it finishes.
   function saveData() {
+    var decision = Store.saveDecision({ loaded: loaded, loadBlocked: loadBlocked })
+    if (decision === "queue") {
+      saveQueued = true
+      return
+    }
+    if (decision === "block") return
     if (dirReady) writeNow()
     else if (!mkdirProc.running) {
       pendingWrites++
@@ -59,6 +73,12 @@ Item {
     var next = Object.assign({}, document)
     next.ui = Object.assign({}, document.ui, { tab: tab })
     document = next
+    tabSaveTimer.restart()
+  }
+
+  function flushQueuedSave() {
+    if (!saveQueued) return
+    saveQueued = false
     saveData()
   }
 
@@ -84,15 +104,28 @@ Item {
     if (out.action === "apply") {
       root.document = out.data
       root.error = ""
+      root.saveFailed = false
       root.reloadError = false
+      root.loadBlocked = false
     } else if (out.action === "error") {
       root.error = out.error
+      root.saveFailed = false
       root.reloadError = true
     } else if (root.reloadError) {
       root.error = ""
       root.reloadError = false
     }
   }
+
+  // ui.tab changes on every tab switch: write once the switching settles
+  // (any other save in between carries the tab along anyway).
+  Timer {
+    id: tabSaveTimer
+    interval: 1500
+    onTriggered: root.saveData()
+  }
+
+  Component.onDestruction: if (tabSaveTimer.running) root.saveData()
 
   FileView {
     id: file
@@ -115,13 +148,18 @@ Item {
           root.error = ""
         } else {
           root.error = result.error
+          root.loadBlocked = true
         }
         root.loaded = true
+        root.flushQueuedSave()
       }
     }
     // A missing file is the normal first-run state: keep the defaults. A file
     // deleted later keeps the in-memory document too.
-    onLoadFailed: function(err) { root.loaded = true }
+    onLoadFailed: function(err) {
+      root.loaded = true
+      root.flushQueuedSave()
+    }
     onFileChanged: {
       if (root.pendingWrites > 0) root.reloadPending = true
       else file.reload()
@@ -134,10 +172,13 @@ Item {
         file.watchChanges = false
         file.watchChanges = true
       }
+      root.error = Store.errorAfterSave(root.error, root.saveFailed)
+      root.saveFailed = false
       root.writeDone()
     }
     onSaveFailed: function(err) {
       root.error = "No pude guardar los datos."
+      root.saveFailed = true
       root.writeDone()
     }
   }
@@ -152,6 +193,7 @@ Item {
         root.writeDone()
       } else {
         root.error = "No pude crear la carpeta de datos."
+        root.saveFailed = true
         root.writeDone()
       }
     }

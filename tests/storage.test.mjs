@@ -191,3 +191,22 @@ test("reloadOutcome: a tab changed from the other surface is applied", () => {
   assert.equal(r.action, "apply")
   assert.equal(r.data.ui.tab, "blackzone")
 })
+
+test("saveDecision: no write before the first load finishes", () => {
+  assert.equal(Storage.saveDecision({ loaded: false, loadBlocked: false }), "queue")
+  assert.equal(Storage.saveDecision({ loaded: false, loadBlocked: true }), "queue")
+})
+
+test("saveDecision: a parse error on the first load blocks saves", () => {
+  assert.equal(Storage.saveDecision({ loaded: true, loadBlocked: true }), "block")
+})
+
+test("saveDecision: a healthy loaded store writes", () => {
+  assert.equal(Storage.saveDecision({ loaded: true, loadBlocked: false }), "write")
+})
+
+test("errorAfterSave: only a save error is cleared by a successful save", () => {
+  assert.equal(Storage.errorAfterSave("No pude guardar los datos.", true), "")
+  assert.equal(Storage.errorAfterSave("El archivo de datos no es JSON válido.", false), "El archivo de datos no es JSON válido.")
+  assert.equal(Storage.errorAfterSave("", false), "")
+})

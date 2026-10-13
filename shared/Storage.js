@@ -112,3 +112,19 @@ function reloadOutcome(text, lastWritten, current, sanitizeFarm, sanitizeBlackzo
   if (serializeData(result.data) === serializeData(current)) return { action: "same" }
   return { action: "apply", data: result.data }
 }
+
+// What saveData() should do. "queue": the first load has not finished, so
+// the document is still the defaults and writing would clobber the real file.
+// "block": the first load found a file it could not parse; saves stay off
+// until a later reload succeeds. "write" otherwise.
+function saveDecision(state) {
+  if (!state.loaded) return "queue"
+  if (state.loadBlocked) return "block"
+  return "write"
+}
+
+// The error text to show after a successful save: a save error clears, but a
+// load or parse error stays.
+function errorAfterSave(error, saveFailed) {
+  return saveFailed ? "" : error
+}
