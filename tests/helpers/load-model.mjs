@@ -23,3 +23,4 @@ export function plain(value) {
   return JSON.parse(JSON.stringify(value))
 }
 export const loadBlackzone = () => loadModule("blackzone/Blackzone.js")
+export const loadViewHelpers = () => loadModule("shared/ViewHelpers.js")

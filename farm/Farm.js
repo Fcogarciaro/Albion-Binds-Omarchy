@@ -356,6 +356,11 @@ function formatSilver(value) {
   return sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 
+// formatSilver with an explicit "+" for gains.
+function signed(value) {
+  return (value > 0 ? "+" : "") + formatSilver(value)
+}
+
 // Compact amount for buttons: "12k", "1.2m" when exact, otherwise grouped digits.
 function formatShort(value) {
   if (typeof value !== "number" || !isFinite(value)) return "-"
